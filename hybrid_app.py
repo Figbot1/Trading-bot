@@ -36,6 +36,7 @@ _state = {
     "cycles": 0,
     "last_cycle_ts": None,
     "last_timeframe": None,
+    "last_error": None,
     "cycle_seconds": getattr(hybrid, "CYCLE_SECONDS", 60),
     "cycle_timeframes": getattr(hybrid, "CYCLE_TIMEFRAMES", ["1m"]),
     "invalid_timeframes": [],
@@ -54,7 +55,11 @@ def _loop():
             tf = "1m"
         _state["last_timeframe"] = tf
         _state["last_cycle_ts"] = datetime.utcnow().isoformat(timespec="seconds")
-        hybrid.run_cycle(tf)
+        try:
+            hybrid.run_cycle(tf)
+            _state["last_error"] = None
+        except Exception as exc:
+            _state["last_error"] = str(exc)
         _state["cycles"] += 1
         i += 1
         _state["cycle_seconds"] = getattr(hybrid, "CYCLE_SECONDS", 60)
@@ -160,4 +165,8 @@ def update_config():
 
 
 if os.getenv("AUTO_START", "1") == "1":
+    try:
+        hybrid.init_database()
+    except Exception:
+        pass
     _start_worker()
