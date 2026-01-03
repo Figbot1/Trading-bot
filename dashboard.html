@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <title>FIGBOT Command Center</title>
+  <!-- FIGBOT_UI_BUILD: 2026-01-03 -->
   <style>
     :root{
       --bg0:#06070a;
@@ -384,6 +385,13 @@
       padding:12px;
       color:rgba(244,246,255,.70);
       font-size:12px;
+    }
+    .build-tag{
+      margin-top:10px;
+      color:rgba(244,246,255,.55);
+      font-size:11px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
     }
     .kbd{
       display:inline-flex;
@@ -852,6 +860,7 @@
           <button class="thumb" data-src="/assets/gggg.jpg" title="Mandala"><img src="/assets/gggg.jpg" alt="Mandala" /></button>
           <button class="thumb" data-src="/assets/g_scribble.jpg" title="Scribble"><img src="/assets/g_scribble.jpg" alt="Scribble" /></button>
         </div>
+        <div class="build-tag" id="build-tag">Build: -</div>
       </div>
     </aside>
 
@@ -1443,15 +1452,21 @@
     });
 
     // ---------- renderers ----------
-    function renderKPIs(stats, status){
+    function renderKPIs(stats, status, state){
       const kpis = $("#kpis");
+      const lastTrade = state && state.last_trade ? state.last_trade : null;
+      const lastTradeLabel = lastTrade && lastTrade.timestamp ? timeOnly(lastTrade.timestamp) : "-";
+      const lastTradeHint = lastTrade && typeof lastTrade.age_sec === "number"
+        ? `Age: ${fmt(lastTrade.age_sec)}s`
+        : "No trades yet";
       const rows = [
         { label:"Total predictions", value: fmt(stats.total_predictions), hint: `Evaluated: ${fmt(stats.evaluated_predictions)}` },
         { label:"Avg correctness", value: fmt(stats.avg_correctness_score, 4), hint: "Across evaluated preds" },
         { label:"Model calls", value: fmt(stats.model_calls), hint: `${fmt(stats.model_calls_ok)} ok` },
         { label:"Total trades", value: fmt(stats.total_trades), hint: (status.running ? "Trading loop is live" : "Loop is stopped") },
-        { label:"Last timeframe", value: status.last_timeframe || "—", hint: `Last cycle: ${timeOnly(status.last_cycle_ts)}` },
-        { label:"Cycles", value: fmt(status.cycles), hint: status.cycle_seconds ? `${fmt(status.cycle_seconds)}s cadence` : "—" },
+        { label:"Last timeframe", value: status.last_timeframe || "-", hint: `Last cycle: ${timeOnly(status.last_cycle_ts)}` },
+        { label:"Cycles", value: fmt(status.cycles), hint: status.cycle_seconds ? `${fmt(status.cycle_seconds)}s cadence` : "-" },
+        { label:"Last trade", value: lastTradeLabel, hint: lastTradeHint },
       ];
       kpis.innerHTML = "";
       rows.forEach(r => {
@@ -1841,21 +1856,23 @@
     async function refreshAll(){
       $("#last-updated").textContent = "Last update: …";
       try{
-        const [stats, status, metrics, experts, preds, calls, trades] = await Promise.all([
+        const [stats, status, metrics, experts, preds, calls, trades, version, state] = await Promise.all([
           fetchJSON("/api/stats"),
           fetchJSON("/status"),
           fetchJSON("/api/system/metrics"),
           fetchJSON("/api/experts/leaderboard"),
           fetchJSON("/api/predictions/recent"),
           fetchJSON("/api/calls/recent"),
-          fetchJSON("/api/trades/recent")
+          fetchJSON("/api/trades/recent"),
+          fetchJSON("/api/version"),
+          fetchJSON("/api/state")
         ]);
 
         // sync form values with backend config
         if (status.cycle_seconds) $("#cycle-seconds").value = status.cycle_seconds;
         if (status.cycle_timeframes) $("#cycle-timeframes").value = status.cycle_timeframes.join(",");
 
-        renderKPIs(stats, status);
+        renderKPIs(stats, status, state);
         renderMetrics(metrics || []);
         renderExperts(experts || []);
         renderPreds(preds || []);
@@ -1863,6 +1880,10 @@
         renderTrades(trades || []);
 
         $("#last-updated").textContent = "Last update: " + (new Date()).toLocaleTimeString(undefined, {hour12:false});
+        if (version && $("#build-tag")) {
+          const stamp = version.build || "local";
+          $("#build-tag").textContent = `Build: ${stamp}`;
+        }
       }catch(e){
         setLive(null);
         $("#last-updated").textContent = "Last update: failed";

@@ -8,6 +8,8 @@ import os
 import sys
 import threading
 import time
+import traceback
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, jsonify, send_file, request, send_from_directory
@@ -34,6 +36,7 @@ _state = {
     "last_cycle_ts": None,
     "last_timeframe": None,
     "last_error": None,
+    "last_trace": None,
     "cycle_seconds": getattr(hybrid, "CYCLE_SECONDS", 60),
     "cycle_timeframes": getattr(hybrid, "CYCLE_TIMEFRAMES", ["1m"]),
     "invalid_timeframes": [],
@@ -55,8 +58,10 @@ def _loop():
         try:
             hybrid.run_cycle(tf)
             _state["last_error"] = None
+            _state["last_trace"] = None
         except Exception as exc:
             _state["last_error"] = str(exc)
+            _state["last_trace"] = traceback.format_exc(limit=12)
         _state["cycles"] += 1
         i += 1
         _state["cycle_seconds"] = getattr(hybrid, "CYCLE_SECONDS", 60)
@@ -98,7 +103,7 @@ def dashboard():
 def assets(filename: str):
     """Serve UI assets (your artworks, logo, etc.)."""
     assets_dir = ROOT / "assets"
-    return send_from_directory(str(assets_dir), filename)
+    return send_from_directory(str(assets_dir), filename, max_age=3600)
 
 
 @app.get("/api/stats")
@@ -168,6 +173,53 @@ def status():
         "fallback_btc_notional": getattr(hybrid, "FALLBACK_BTC_NOTIONAL", 0),
     })
     return jsonify(snapshot)
+
+
+def _last_trade_snapshot() -> dict:
+    db_path = getattr(hybrid, "DB_PATH", "trading_history.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT id, timestamp, asset, action, price, quantity FROM trades ORDER BY id DESC LIMIT 1")
+        row = cur.fetchone()
+        conn.close()
+    except Exception:
+        return {"last_trade": None}
+
+    if not row:
+        return {"last_trade": None}
+
+    ts = row["timestamp"]
+    age_sec = None
+    try:
+        age_sec = int((datetime.utcnow() - datetime.fromisoformat(ts)).total_seconds())
+    except Exception:
+        age_sec = None
+    return {
+        "last_trade": {
+            "id": row["id"],
+            "timestamp": ts,
+            "asset": row["asset"],
+            "action": row["action"],
+            "price": row["price"],
+            "quantity": row["quantity"],
+            "age_sec": age_sec,
+        }
+    }
+
+
+@app.get("/api/state")
+def state():
+    return jsonify(_last_trade_snapshot())
+
+
+@app.get("/api/version")
+def version():
+    return jsonify({
+        "build": os.getenv("APP_BUILD_ID", "local"),
+        "timestamp": os.getenv("APP_BUILD_TS", datetime.utcnow().isoformat(timespec="seconds") + "Z"),
+    })
 
 
 @app.post("/config")
