@@ -112,12 +112,23 @@ def init_database():
     conn.commit()
     conn.close()
 
-async def get_alpaca_account_info(account_id: str):
-    """Get real Alpaca account balance and positions"""
+# Cache for account data to prevent flickering
+account_cache = {}
+last_update = {}
+
+async def get_alpaca_account_info(account_id: str, force_refresh=False):
+    """Get real Alpaca account balance and positions with caching"""
+    # Return cached data if recent (within 10 seconds)
+    if not force_refresh and account_id in account_cache:
+        if account_id in last_update:
+            age = (datetime.now() - last_update[account_id]).total_seconds()
+            if age < 10:
+                return account_cache[account_id]
+    
     account_config = ALPACA_ACCOUNTS[account_id]
     
     if not account_config['api_key']:
-        return None
+        return account_cache.get(account_id, None)
     
     headers = {
         'APCA-API-KEY-ID': account_config['api_key'],
@@ -127,17 +138,17 @@ async def get_alpaca_account_info(account_id: str):
     try:
         async with aiohttp.ClientSession() as session:
             # Get account info
-            async with session.get(f"{account_config['base_url']}/v2/account", headers=headers) as resp:
+            async with session.get(f"{account_config['base_url']}/v2/account", headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
                     account_data = await resp.json()
                     
                     # Get positions
-                    async with session.get(f"{account_config['base_url']}/v2/positions", headers=headers) as pos_resp:
+                    async with session.get(f"{account_config['base_url']}/v2/positions", headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as pos_resp:
                         positions = []
                         if pos_resp.status == 200:
                             positions = await pos_resp.json()
                         
-                        return {
+                        account_info = {
                             'account_id': account_id,
                             'name': account_config['name'],
                             'balance': float(account_data['cash']),
@@ -146,10 +157,19 @@ async def get_alpaca_account_info(account_id: str):
                             'positions': {p['symbol']: float(p['qty']) for p in positions},
                             'portfolio_value': float(account_data['portfolio_value'])
                         }
+                        
+                        # Cache the result
+                        account_cache[account_id] = account_info
+                        last_update[account_id] = datetime.now()
+                        
+                        return account_info
+                else:
+                    logger.warning(f"Alpaca API returned {resp.status}, using cached data")
     except Exception as e:
-        logger.error(f"Error fetching account {account_id}: {e}")
+        logger.error(f"Error fetching account {account_id}: {e}, using cached data")
     
-    return None
+    # Return cached data if API call failed
+    return account_cache.get(account_id, None)
 
 async def execute_real_alpaca_trade(account_id: str, symbol: str, action: str, confidence: float, ai_model: str, thinking_style: str):
     """Execute REAL trade on Alpaca"""
@@ -326,11 +346,12 @@ async def ultimate_trading_loop():
         logger.info(f"\n{'='*20} REAL TRADING CYCLE {cycle} {'='*20}")
         
         try:
-            # Refresh account info
-            for account_id in list(accounts.keys()):
-                account_info = await get_alpaca_account_info(account_id)
-                if account_info:
-                    accounts[account_id] = account_info
+            # Refresh account info only every 30 seconds
+            if cycle % 3 == 0:  # Every 3rd cycle (90 seconds)
+                for account_id in list(accounts.keys()):
+                    account_info = await get_alpaca_account_info(account_id, force_refresh=True)
+                    if account_info:
+                        accounts[account_id] = account_info
             
             # Get market data
             market_data = await gather_market_data()
