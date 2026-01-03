@@ -79,7 +79,9 @@ PORTFOLIO_CAP = float(os.getenv("PORTFOLIO_CAP", "30"))              # pretend y
 MAX_WORKERS = int(os.getenv("MAX_WORKERS", "6"))
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
-OLLAMA_MODELS = [m.strip() for m in os.getenv("OLLAMA_MODELS", "llama3.1:8b").split(",") if m.strip()]
+OLLAMA_MODELS = [m.strip() for m in os.getenv("OLLAMA_MODELS", "").split(",") if m.strip()]
+OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "0") == "1"
+OLLAMA_ALLOW_LOCALHOST = os.getenv("OLLAMA_ALLOW_LOCALHOST", "0") == "1"
 
 APCA_DATA_BASE_URL = os.getenv("APCA_DATA_BASE_URL", "https://data.alpaca.markets").rstrip("/")
 ENABLE_ALPHA_HUNTER = os.getenv("ENABLE_ALPHA_HUNTER", "1") == "1"
@@ -916,11 +918,14 @@ def run_cycle(tf: str):
 
     # model tasks (ollama only unless ENABLE_REMOTE=1 later)
     tasks = []
-    for m in OLLAMA_MODELS:
-        for style in THINKING_STYLES:
-            model_full = f"ollama:{m}"
-            prompt = build_prompt(market_data, news, style, tf, list(market_data.keys()), model_full)
-            tasks.append((m, style, prompt, model_full))
+    ollama_localhost = OLLAMA_URL.startswith("http://localhost") or OLLAMA_URL.startswith("http://127.")
+    ollama_ready = OLLAMA_ENABLED and OLLAMA_MODELS and (OLLAMA_ALLOW_LOCALHOST or not ollama_localhost)
+    if ollama_ready:
+        for m in OLLAMA_MODELS:
+            for style in THINKING_STYLES:
+                model_full = f"ollama:{m}"
+                prompt = build_prompt(market_data, news, style, tf, list(market_data.keys()), model_full)
+                tasks.append((m, style, prompt, model_full))
 
     fail_counts = {"no_text":0, "parse_fail":0, "exceptions":0}
     stored = 0
@@ -1036,7 +1041,7 @@ def main():
     print(f"DB: {DB_PATH}")
     print(f"ENV: {ENV_PATH}")
     print(f"CYCLE_SECONDS={CYCLE_SECONDS}  ENABLE_REMOTE={int(ENABLE_REMOTE)}  FORCE_TRADE={int(FORCE_TRADE)}")
-    print(f"OLLAMA_URL={OLLAMA_URL}  MODELS={','.join(OLLAMA_MODELS)}  MAX_WORKERS={MAX_WORKERS}")
+    print(f"OLLAMA_URL={OLLAMA_URL}  MODELS={','.join(OLLAMA_MODELS)}  OLLAMA_ENABLED={int(OLLAMA_ENABLED)}  MAX_WORKERS={MAX_WORKERS}")
     print("="*88)
 
     if CONSOLIDATE_ON_START:
