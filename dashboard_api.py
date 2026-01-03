@@ -3,11 +3,12 @@ Dashboard API Server (Flask)
 - Reads trading_history.db
 - Shows stats, leaderboard (expert_weights), recent predictions, recent calls, recent trades
 RUN:
-  python ./dashboard_api.py
+  python .\dashboard_api.py
 """
 from flask import Flask, jsonify, send_file
 from flask_cors import CORS
 import sqlite3
+import os
 from datetime import datetime
 
 DB_PATH = "trading_history.db"
@@ -36,13 +37,17 @@ def stats():
     total_calls = q("SELECT COUNT(*) AS n FROM model_calls")[0]["n"]
     ok_calls = q("SELECT COUNT(*) AS n FROM model_calls WHERE ok=1")[0]["n"]
     total_trades = q("SELECT COUNT(*) AS n FROM trades")[0]["n"]
+    portfolio_value = float(os.getenv("PORTFOLIO_CAP", "30"))
     return jsonify({
         "total_predictions": total_preds,
         "evaluated_predictions": eval_preds,
         "avg_correctness_score": round(float(avg_score), 4),
         "model_calls": total_calls,
         "model_calls_ok": ok_calls,
-        "total_trades": total_trades
+        "total_trades": total_trades,
+        "portfolio_value": portfolio_value,
+        "ai_calls": total_calls,
+        "win_rate": round(float(avg_score), 4),
     })
 
 @app.route("/api/experts/leaderboard")
@@ -145,6 +150,7 @@ def system_metrics():
             "fail_counts": r["fail_counts"],
             "memory_mb": float(r["memory_mb"] or 0),
             "cpu_pct": float(r["cpu_pct"] or 0),
+            "cpu_percent": float(r["cpu_pct"] or 0),
         })
     return jsonify(out)
 
