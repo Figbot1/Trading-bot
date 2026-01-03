@@ -69,6 +69,9 @@ CYCLE_SECONDS = int(os.getenv("CYCLE_SECONDS", "60"))
 CYCLE_TIMEFRAMES = [x.strip() for x in os.getenv("CYCLE_TIMEFRAMES", "5s,30s,1m,5m,15m").split(",") if x.strip()]
 ENABLE_REMOTE = os.getenv("ENABLE_REMOTE", "0") == "1"
 FORCE_TRADE = os.getenv("FORCE_TRADE", "1") == "1"
+FALLBACK_BTC_TRADE = os.getenv("FALLBACK_BTC_TRADE", "1") == "1"
+FALLBACK_BTC_SYMBOL = os.getenv("FALLBACK_BTC_SYMBOL", "BTCUSD").strip().upper()
+FALLBACK_BTC_NOTIONAL = float(os.getenv("FALLBACK_BTC_NOTIONAL", "10"))
 
 STOP_LOSS_PERCENT = float(os.getenv("STOP_LOSS_PERCENT", "0.05"))
 MAX_POSITION_PCT = float(os.getenv("MAX_POSITION_PCT", "0.50"))      # aggressive cap
@@ -979,14 +982,45 @@ def run_cycle(tf: str):
                 did_trade = True
                 print(f"   ✅ Alpaca order ok: {alpaca_order_id or 'ok'}")
         else:
-            # still record a simulated trade so you see one per minute even without keys
             if FORCE_TRADE:
-                print("   ⚠️ Alpaca keys missing; recording SIMULATED trade.")
-                did_trade = True
+                print("   ⚠️ Alpaca keys missing; cannot place trade.")
         if did_trade:
             record_trade(trade, alpaca_order_id)
     else:
-        if FORCE_TRADE:
+        if stored == 0 and FALLBACK_BTC_TRADE and alpaca.ok():
+            price = get_price(alpaca, FALLBACK_BTC_SYMBOL, "crypto")
+            if price:
+                qty = max(0.00000001, FALLBACK_BTC_NOTIONAL / float(price))
+                buy_trade = {
+                    "asset": FALLBACK_BTC_SYMBOL,
+                    "asset_type": "crypto",
+                    "timeframe": tf,
+                    "expected_change": 0.0,
+                    "consensus": 0.0,
+                    "votes": 0,
+                    "side": "buy",
+                    "qty": qty,
+                    "price": float(price),
+                    "stop_loss": float(price) * (1 - STOP_LOSS_PERCENT),
+                }
+                res_buy = alpaca.place_order(buy_trade["asset"], buy_trade["qty"], "buy")
+                if "error" in res_buy:
+                    print(f"   ❌ Fallback BUY failed: {res_buy['error']}")
+                else:
+                    record_trade(buy_trade, res_buy.get("id"))
+                    did_trade = True
+                    res_sell = alpaca.place_order(buy_trade["asset"], buy_trade["qty"], "sell")
+                    if "error" in res_sell:
+                        print(f"   ❌ Fallback SELL failed: {res_sell['error']}")
+                    else:
+                        sell_trade = dict(buy_trade)
+                        sell_trade["side"] = "sell"
+                        record_trade(sell_trade, res_sell.get("id"))
+                        did_trade = True
+                        print(f"⚠️ Fallback round-trip {FALLBACK_BTC_SYMBOL} qty={qty:.8f}")
+            else:
+                print("⚠️ Fallback BTC trade skipped (price unavailable).")
+        elif FORCE_TRADE:
             print("⚠️  FORCE_TRADE=1 but no trade signal (likely no predictions stored).")
         else:
             print("💤 No trade this cycle (FORCE_TRADE=0).")
