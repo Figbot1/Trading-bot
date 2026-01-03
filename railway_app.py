@@ -37,47 +37,47 @@ current_portfolio = {"balance": 30.0, "positions": {}}
 AI_MODELS = {
     "groq": {
         "models": ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "qwen-2.5-coder-32b", "qwen-2.5-32b", "mixtral-8x7b-32768"],
-        "api_key": os.getenv("GROQ_API_KEY", "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"),
+        "api_key": os.getenv("GROQ_API_KEY", ""),
         "endpoint": "https://api.groq.com/openai/v1/chat/completions"
     },
     "openai": {
         "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "o1-preview", "o1-mini"],
-        "api_key": os.getenv("OPENAI_API_KEY", "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"),
+        "api_key": os.getenv("OPENAI_API_KEY", ""),
         "endpoint": "https://api.openai.com/v1/chat/completions"
     },
     "anthropic": {
         "models": ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
-        "api_key": os.getenv("ANTHROPIC_API_KEY", "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"),
+        "api_key": os.getenv("ANTHROPIC_API_KEY", ""),
         "endpoint": "https://api.anthropic.com/v1/messages"
     },
     "google": {
         "models": ["gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
-        "api_key": os.getenv("GEMINI_API_KEY", "AIzaSyAn3LTWaNoIKfMnyOIuNAHAAvuU2UXVsY4"),
+        "api_key": os.getenv("GEMINI_API_KEY", ""),
         "endpoint": "https://generativelanguage.googleapis.com/v1beta/models"
     },
     "openrouter": {
         "models": ["x-ai/grok-2-1212", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.2-90b-vision-instruct", "openrouter/bert-nebulon-alpha", "nvidia/nemotron-nano-12b-v2-vl:free", "meta-llama/llama-3.2-1b-instruct:free"],
-        "api_key": os.getenv("OPENROUTER_API_KEY", "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"),
+        "api_key": os.getenv("OPENROUTER_API_KEY", ""),
         "endpoint": "https://openrouter.ai/api/v1/chat/completions"
     },
     "cohere": {
         "models": ["command-r-plus", "command-r", "command", "command-nightly", "command-light"],
-        "api_key": os.getenv("COHERE_API_KEY", "ewD9Q4D06xDwxt4GjmzubhWgf01AfcNFaeqiYErm"),
+        "api_key": os.getenv("COHERE_API_KEY", ""),
         "endpoint": "https://api.cohere.ai/v1/chat"
     },
     "mistral": {
         "models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest", "mixtral-8x7b-instruct"],
-        "api_key": os.getenv("MISTRAL_API_KEY", "dJpguYc4ib269cDMV9hV7FKG5zPStc7e"),
+        "api_key": os.getenv("MISTRAL_API_KEY", ""),
         "endpoint": "https://api.mistral.ai/v1/chat/completions"
     },
     "deepseek": {
         "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
-        "api_key": os.getenv("DEEPSEEK_API_KEY", "sk-8a6a892e8bd248959f351f5b78070089"),
+        "api_key": os.getenv("DEEPSEEK_API_KEY", ""),
         "endpoint": "https://api.deepseek.com/chat/completions"
     },
     "huggingface": {
         "models": ["microsoft/DialoGPT-large", "facebook/blenderbot-400M-distill", "microsoft/DialoGPT-medium", "facebook/blenderbot-1B-distill"],
-        "api_key": os.getenv("HUGGINGFACE_API_KEY", "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"),
+        "api_key": os.getenv("HUGGINGFACE_API_KEY", ""),
         "endpoint": "https://api-inference.huggingface.co/models"
     }
 }
@@ -94,8 +94,8 @@ THINKING_STYLES = [
 # Exchange Configurations
 EXCHANGES = {
     "alpaca": {
-        "api_key": os.getenv("ALPACA_API_KEY", "PKW3SRTBKRD5ILOE3XVH4QNJVC"),
-        "secret_key": os.getenv("ALPACA_SECRET_KEY", "5EcmPxHAJRwfaqrxtNskyp7bqNCWvXkHR6MShBKqqppE"),
+        "api_key": os.getenv("ALPACA_API_KEY", ""),
+        "secret_key": os.getenv("ALPACA_SECRET_KEY", ""),
         "base_url": "https://paper-api.alpaca.markets"
     },
     "kraken": {

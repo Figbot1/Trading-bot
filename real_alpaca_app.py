@@ -32,8 +32,8 @@ active_account = None
 ALPACA_ACCOUNTS = {
     "account1": {
         "name": "Primary Account",
-        "api_key": os.getenv("ALPACA_API_KEY", "PKW3SRTBKRD5ILOE3XVH4QNJVC"),
-        "secret_key": os.getenv("ALPACA_SECRET_KEY", "5EcmPxHAJRwfaqrxtNskyp7bqNCWvXkHR6MShBKqqppE"),
+        "api_key": os.getenv("ALPACA_API_KEY", ""),
+        "secret_key": os.getenv("ALPACA_SECRET_KEY", ""),
         "base_url": "https://paper-api.alpaca.markets"
     },
     "account2": {
@@ -357,25 +357,31 @@ async def ultimate_trading_loop():
             market_data = await gather_market_data()
             logger.info(f"📊 Market data: {len(market_data['stocks'])} stocks")
             
-            # Call AI models
+            # Call ALL AI models with ALL their models - MAXIMUM API USAGE
             votes = []
-            for _ in range(10):
-                provider = random.choice([p for p in AI_MODELS.keys() if AI_MODELS[p]['api_key']])
-                model = random.choice(AI_MODELS[provider]['models'])
-                thinking_style = random.choice(THINKING_STYLES)
-                
-                ai_result = await call_ai_model(provider, model, thinking_style, market_data, accounts[active_account])
-                
-                if ai_result['success']:
+            tasks = []
+            
+            # Create tasks for ALL providers and ALL their models simultaneously
+            for provider, config in AI_MODELS.items():
+                if config['api_key']:
+                    for model in config['models']:
+                        for thinking_style in THINKING_STYLES:
+                            tasks.append(call_ai_model(provider, model, thinking_style, market_data, accounts[active_account]))
+            
+            # Execute ALL AI calls concurrently - MAXIMUM SPEED
+            logger.info(f"🚀 Calling {len(tasks)} AI models simultaneously...")
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results
+            for ai_result in results:
+                if isinstance(ai_result, dict) and ai_result.get('success'):
                     votes.append(ai_result)
                     ai_responses.append({
                         'timestamp': datetime.now().isoformat(),
                         'model': ai_result['model'],
-                        'thinking_style': thinking_style,
+                        'thinking_style': ai_result['thinking_style'],
                         'decision': ai_result['decision']
                     })
-                
-                await asyncio.sleep(0.5)
             
             # Democratic voting
             if votes:
@@ -395,14 +401,14 @@ async def ultimate_trading_loop():
                     best_asset = max(asset_votes.items(), key=lambda x: (len(x[1]), sum(v['confidence'] for v in x[1])))
                     asset, vote_list = best_asset
                     
-                    if len(vote_list) >= 3:  # At least 3 AI votes
+                    if len(vote_list) >= 1:  # Execute on ANY AI vote - MAXIMUM TRADING
                         avg_confidence = sum(v['confidence'] for v in vote_list) / len(vote_list)
                         await execute_real_alpaca_trade(active_account, asset, 'BUY', avg_confidence, f"{len(vote_list)}_AIs", "democratic_consensus")
             
             logger.info(f"💰 {accounts[active_account]['name']}: ${accounts[active_account]['portfolio_value']:.2f}")
             logger.info(f"🎯 Cycle {cycle} complete: {len(votes)} AI votes")
             
-            await asyncio.sleep(60)  # 1 minute between cycles
+            await asyncio.sleep(10)  # 10 seconds between cycles - MAXIMUM FREQUENCY
             
         except Exception as e:
             logger.error(f"Trading loop error: {e}")
