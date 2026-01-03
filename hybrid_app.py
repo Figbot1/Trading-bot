@@ -5,6 +5,7 @@ Runs the democratic_trader_hybrid loop in a background thread and exposes status
 """
 
 import os
+import sys
 import threading
 import time
 from datetime import datetime
@@ -13,9 +14,14 @@ from flask import Flask, jsonify, send_file, request
 from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
 
-from . import democratic_trader_hybrid as hybrid  # type: ignore
-from . import dashboard_api as dash  # type: ignore
+try:
+    from . import democratic_trader_hybrid as hybrid  # type: ignore
+    from . import dashboard_api as dash  # type: ignore
+except Exception:
+    import democratic_trader_hybrid as hybrid  # type: ignore
+    import dashboard_api as dash  # type: ignore
 
 app = Flask(__name__)
 CORS(app)
