@@ -14,8 +14,8 @@ from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent
 
-import democratic_trader_hybrid as hybrid  # type: ignore
-import dashboard_api as dash  # type: ignore
+from . import democratic_trader_hybrid as hybrid  # type: ignore
+from . import dashboard_api as dash  # type: ignore
 
 app = Flask(__name__)
 CORS(app)
