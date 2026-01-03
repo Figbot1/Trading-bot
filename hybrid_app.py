@@ -5,7 +5,6 @@ Runs the democratic_trader_hybrid loop in a background thread and exposes status
 """
 
 import os
-import sys
 import threading
 import time
 from datetime import datetime
@@ -13,9 +12,7 @@ from pathlib import Path
 from flask import Flask, jsonify, send_file, request
 from flask_cors import CORS
 
-ROOT = Path(__file__).resolve().parents[1]
-FIGBOT_DIR = ROOT / "Figbot-online"
-sys.path.insert(0, str(FIGBOT_DIR))
+ROOT = Path(__file__).resolve().parent
 
 import democratic_trader_hybrid as hybrid  # type: ignore
 import dashboard_api as dash  # type: ignore
@@ -82,7 +79,7 @@ def health():
 
 @app.get("/")
 def dashboard():
-    dashboard_path = FIGBOT_DIR / "dashboard.html"
+    dashboard_path = ROOT / "dashboard.html"
     if dashboard_path.exists():
         return send_file(str(dashboard_path))
     return jsonify({"ok": True, "message": "Dashboard not found"})

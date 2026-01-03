@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Democratic Trading Dashboard</title>
+  <style>
+    body { font-family: sans-serif; margin: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    h2 { margin: 0 0 10px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { border-bottom: 1px solid #eee; padding: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Democratic AI Trading Dashboard</h1>
+  <div class="grid">
+    <div class="card">
+      <h2>Stats</h2>
+      <pre id="stats">Loading...</pre>
+    </div>
+    <div class="card">
+      <h2>Controls</h2>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button id="btn-start">Start</button>
+        <button id="btn-stop">Stop</button>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>Cycle seconds</label><br/>
+        <input id="cycle-seconds" type="number" min="1" value="60" style="width:120px;" />
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>Timeframes (comma)</label><br/>
+        <input id="cycle-timeframes" type="text" value="5s,30s,1m,5m,15m" style="width:100%;" />
+      </div>
+      <button id="btn-apply">Apply</button>
+      <div id="status-line" style="margin:8px 0; font-size:12px;"></div>
+      <pre id="status">Loading...</pre>
+    </div>
+    <div class="card">
+      <h2>System Metrics</h2>
+      <table id="metrics"></table>
+    </div>
+    <div class="card">
+      <h2>Top Experts (Weights)</h2>
+      <table id="experts"></table>
+    </div>
+    <div class="card">
+      <h2>Recent Predictions</h2>
+      <table id="preds"></table>
+    </div>
+    <div class="card">
+      <h2>Recent Model Calls</h2>
+      <table id="calls"></table>
+    </div>
+    <div class="card">
+      <h2>Recent Trades</h2>
+      <table id="trades"></table>
+    </div>
+  </div>
+
+<script>
+async function j(url){ return (await fetch(url)).json(); }
+
+function table(el, headers, rows){
+  el.innerHTML = "";
+  const thead = document.createElement("tr");
+  headers.forEach(h=>{ const th=document.createElement("th"); th.textContent=h; thead.appendChild(th); });
+  el.appendChild(thead);
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    r.forEach(v=>{ const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); });
+    el.appendChild(tr);
+  });
+}
+
+async function refresh(){
+  const stats = await j("/api/stats");
+  document.getElementById("stats").textContent = JSON.stringify(stats, null, 2);
+
+  const status = await j("/status");
+  document.getElementById("status").textContent = JSON.stringify(status, null, 2);
+  const statusLine = document.getElementById("status-line");
+  const running = status.running ? "RUNNING" : "STOPPED";
+  const tf = status.last_timeframe || "-";
+  const invalid = (status.invalid_timeframes || []).join(", ");
+  statusLine.textContent = `State: ${running} | Last TF: ${tf}` + (invalid ? ` | Invalid TFs: ${invalid}` : "");
+  if (status.cycle_seconds) {
+    document.getElementById("cycle-seconds").value = status.cycle_seconds;
+  }
+  if (status.cycle_timeframes) {
+    document.getElementById("cycle-timeframes").value = status.cycle_timeframes.join(",");
+  }
+
+  const experts = await j("/api/experts/leaderboard");
+  table(document.getElementById("experts"),
+        ["expert","ema","w","n"],
+        experts.slice(0,15).map(x=>[x.expert, x.ema_score, x.weight, x.samples]));
+
+  const metrics = await j("/api/system/metrics");
+  table(document.getElementById("metrics"),
+        ["time","ms","assets","news","picks","eval","traded","memMB","cpu%"],
+        metrics.slice(0,15).map(x=>[
+          x.timestamp.split("T")[1] || x.timestamp,
+          x.cycle_ms, x.assets_count, x.news_count,
+          x.picks_stored, x.evaluated_count, x.traded,
+          x.memory_mb ? x.memory_mb.toFixed(1) : "",
+          x.cpu_pct ? x.cpu_pct.toFixed(1) : ""
+        ]));
+
+  const preds = await j("/api/predictions/recent");
+  table(document.getElementById("preds"),
+        ["time","asset","tf","dir","conf","exp%","score","model/style"],
+        preds.slice(0,25).map(x=>[
+          x.timestamp.split("T")[1] || x.timestamp,
+          x.asset, x.timeframe, x.direction,
+          x.confidence, x.expected_change_percent,
+          x.score === null ? "" : x.score,
+          (x.model + " / " + x.thinking_style).slice(0,60)
+        ]));
+
+  const calls = await j("/api/calls/recent");
+  table(document.getElementById("calls"),
+        ["time","prov","model","ok","ms","err"],
+        calls.slice(0,25).map(x=>[
+          x.timestamp.split("T")[1] || x.timestamp,
+          x.provider, (x.model||"").slice(0,20),
+          x.ok, x.latency_ms, (x.error||"").slice(0,40)
+        ]));
+
+  const trades = await j("/api/trades/recent");
+  table(document.getElementById("trades"),
+        ["time","asset","action","qty","price","stop"],
+        trades.slice(0,25).map(x=>[
+          x.timestamp.split("T")[1] || x.timestamp,
+          x.asset, x.action, x.quantity, x.price, x.stop_loss
+        ]));
+}
+
+document.getElementById("btn-start").addEventListener("click", async () => {
+  await fetch("/start", { method: "POST" });
+  refresh();
+});
+document.getElementById("btn-stop").addEventListener("click", async () => {
+  await fetch("/stop", { method: "POST" });
+  refresh();
+});
+document.getElementById("btn-apply").addEventListener("click", async () => {
+  const cycleSeconds = document.getElementById("cycle-seconds").value;
+  const timeframes = document.getElementById("cycle-timeframes").value;
+  await fetch("/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cycle_seconds: cycleSeconds, timeframes })
+  });
+  refresh();
+});
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
