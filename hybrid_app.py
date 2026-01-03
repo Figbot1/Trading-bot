@@ -15,13 +15,10 @@ from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT.parent))
 
-try:
-    from . import democratic_trader_hybrid as hybrid  # type: ignore
-    from . import dashboard_api as dash  # type: ignore
-except Exception:
-    import democratic_trader_hybrid as hybrid  # type: ignore
-    import dashboard_api as dash  # type: ignore
+import democratic_trader_hybrid as hybrid  # type: ignore
+import dashboard_api as dash  # type: ignore
 
 app = Flask(__name__)
 CORS(app)
