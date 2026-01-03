@@ -3,7 +3,7 @@ Dashboard API Server (Flask)
 - Reads trading_history.db
 - Shows stats, leaderboard (expert_weights), recent predictions, recent calls, recent trades
 RUN:
-  python .\dashboard_api.py
+  python ./dashboard_api.py
 """
 from flask import Flask, jsonify, send_file
 from flask_cors import CORS

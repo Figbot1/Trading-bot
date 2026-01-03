@@ -1,342 +1,1905 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Democratic Trading Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>FIGBOT Command Center</title>
   <style>
-    :root {
-      --bg: #0f131a;
-      --bg2: #1c2330;
-      --panel: rgba(17, 22, 31, 0.85);
-      --border: rgba(255, 255, 255, 0.08);
-      --text: #e6edf6;
-      --muted: #94a3b8;
-      --accent: #00d4ff;
-      --accent2: #f1c40f;
-      --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    :root{
+      --bg0:#06070a;
+      --bg1:#0c0f16;
+      --ink:#f4f6ff;
+      --muted:rgba(244,246,255,.72);
+      --faint:rgba(244,246,255,.45);
+      --line:rgba(244,246,255,.10);
+      --glass:rgba(10,12,18,.58);
+      --glass2:rgba(12,14,22,.38);
+
+      --a:#ff4fd8;   /* neon magenta */
+      --b:#2dd4bf;   /* aqua */
+      --c:#8b5cf6;   /* violet */
+      --d:#f97316;   /* orange */
+      --good:#34d399;
+      --bad:#fb7185;
+
+      --r1:24px; --r2:20px; --r3:28px;
+      --shadow: 0 20px 60px rgba(0,0,0,.45);
+      --shadow2: 0 10px 30px rgba(0,0,0,.35);
+
+      /* 0..1 — how hard the artwork hits */
+      --art: .82;
     }
 
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Space Grotesk", "IBM Plex Sans", "Segoe UI", sans-serif;
-      color: var(--text);
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--ink);
+      background: radial-gradient(1200px 800px at 15% 0%, rgba(139,92,246,.20), transparent 55%),
+                  radial-gradient(900px 700px at 85% 25%, rgba(45,212,191,.18), transparent 55%),
+                  radial-gradient(1200px 900px at 60% 100%, rgba(255,79,216,.16), transparent 60%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    /* === FIGBOT / your-art world === */
+
+    /* GGG animated scribble canvas */
+    .bg-canvas{
+      position:fixed; inset:0;
+      width:100vw; height:100vh;
+      z-index:-4;
+      pointer-events:none;
+      opacity:.22;
+      mix-blend-mode: screen;
+      filter: saturate(1.25) contrast(1.08);
+    }
+
+    .bg-art{
+      position:fixed; inset:-60px;
+      background-image:url("/assets/ggg.jpg");
+      background-size:cover;
+      background-position:center;
+      filter:saturate(1.2) contrast(1.15) blur(14px);
+      opacity:.26;
+      transform:scale(1.08);
+      pointer-events:none;
+      z-index:-3;
+    }
+
+    /* vibrant collage wash (GG piece) */
+    .bg-gg{
+      position:fixed; inset:-80px;
+      background-image:url("/assets/gg.jpg");
+      background-size:cover;
+      background-position:center;
+      filter:saturate(1.55) contrast(1.1) blur(22px);
+      opacity: calc(var(--art, .72) * .18);
+      transform:scale(1.12);
+      mix-blend-mode: screen;
+      pointer-events:none;
+      z-index:-3;
+    }
+
+    /* mandala/portal layer */
+    .bg-mandala{
+      position:fixed;
+      width:min(920px, 92vw);
+      height:min(920px, 92vw);
+      left:50%;
+      top:18%;
+      transform:translate(-50%,-25%) rotate(0deg);
+      background-image:url("/assets/gggg.jpg");
+      background-size:cover;
+      background-position:center;
+      filter:saturate(1.35) contrast(1.05);
+      opacity: calc(var(--art, .72) * .20);
+      mix-blend-mode: overlay;
+      border-radius:50%;
+      pointer-events:none;
+      z-index:-2;
+      animation: mandalaSpin 28s linear infinite;
+    }
+    @keyframes mandalaSpin{ to{ transform:translate(-50%,-25%) rotate(360deg); } }
+
+    /* figbot banner ribbon */
+    .bg-banner{
+      position:fixed;
+      left:50%;
+      bottom:-40px;
+      width:min(1200px, 120vw);
+      height:260px;
+      transform:translateX(-50%) rotate(-2deg);
+      background-image:url("/assets/figbot_banner.jpg");
+      background-size:cover;
+      background-position:center;
+      opacity: calc(var(--art, .72) * .22);
+      filter:saturate(1.2) contrast(1.05) blur(1px);
+      mix-blend-mode: screen;
+      border-radius: 46px;
+      pointer-events:none;
+      z-index:-2;
+      box-shadow: 0 60px 120px rgba(0,0,0,.45);
+    }
+    .bg-vignette{
+      position:fixed; inset:0;
       background:
-        radial-gradient(1000px 700px at -10% -10%, rgba(0, 212, 255, 0.15), transparent 60%),
-        radial-gradient(900px 600px at 110% -20%, rgba(241, 196, 15, 0.12), transparent 55%),
-        linear-gradient(160deg, var(--bg), var(--bg2));
-      min-height: 100vh;
+        radial-gradient(900px 700px at 10% 10%, rgba(0,0,0,.00), rgba(0,0,0,.55)),
+        radial-gradient(700px 600px at 90% 20%, rgba(0,0,0,.00), rgba(0,0,0,.50)),
+        linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.70));
+      pointer-events:none;
+      z-index:-2;
+    }
+    .noise{
+      position:fixed; inset:0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0px, rgba(255,255,255,.04) 1px, transparent 2px, transparent 4px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0px, rgba(255,255,255,.03) 1px, transparent 2px, transparent 5px);
+      opacity:.07;
+      mix-blend-mode:overlay;
+      pointer-events:none;
+      z-index:-1;
     }
 
-    .page {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 28px 18px 60px;
+    /* Layout */
+    .shell{
+      display:grid;
+      grid-template-columns: 270px 1fr;
+      min-height:100vh;
+    }
+    @media (max-width: 980px){
+      .shell{ grid-template-columns: 1fr; }
     }
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 16px;
+    /* Sidebar */
+    .sidebar{
+      padding:18px 14px;
+      position:sticky;
+      top:0;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .sidebar{ position:relative; height:auto; }
     }
 
-    .title {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
+    .brand{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      backdrop-filter: blur(16px);
+      border-radius: var(--r1) var(--r2) var(--r3) 18px / 18px var(--r3) var(--r2) var(--r1);
+      box-shadow: var(--shadow2);
+      padding:14px 14px 12px;
+      position:relative;
+      overflow:hidden;
+    }
+    .brand::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(700px 200px at 10% 0%, rgba(255,79,216,.25), transparent 55%),
+        radial-gradient(700px 200px at 90% 40%, rgba(45,212,191,.20), transparent 55%),
+        radial-gradient(700px 200px at 50% 120%, rgba(139,92,246,.20), transparent 55%);
+      opacity:.9;
+      filter: blur(10px);
+      pointer-events:none;
+    }
+    .brand-inner{ position:relative; }
+    .figmark{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-top:8px;
+    }
+    .figlogo{
+      width:54px;
+      height:54px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.18);
+      box-shadow: 0 10px 28px rgba(0,0,0,.35);
+      object-fit:cover;
+    }
+    .figbot-word{
+      font-size:28px;
+      line-height:1;
+      letter-spacing:.02em;
+      font-weight:900;
+      text-transform:uppercase;
+      color:rgba(255,255,255,.92);
+      text-shadow:
+        0 0 24px rgba(255,79,216,.18),
+        0 0 18px rgba(45,212,191,.16),
+        2px 2px 0 rgba(0,0,0,.55);
+      -webkit-text-stroke: 1px rgba(0,0,0,.38);
+    }
+    .figbot-word small{
+      display:block;
+      margin-top:6px;
+      font-size:11px;
+      letter-spacing:.18em;
+      font-weight:800;
+      text-transform:uppercase;
+      color:rgba(244,246,255,.66);
+    }
+    .kicker{
+      font-size:12px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color:rgba(244,246,255,.70);
+    }
+    .brand h1{
+      margin:6px 0 0;
+      font-size:18px;
+      line-height:1.1;
+      letter-spacing:.02em;
     }
 
-    .subtitle {
-      color: var(--muted);
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
+    .figbot-mark{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-top:6px;
+    }
+    .figbot-logo{
+      width:44px;
+      height:44px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+      overflow:hidden;
+      flex:0 0 auto;
+    }
+    .figbot-logo img{ width:100%; height:100%; object-fit:cover; filter:saturate(1.2) contrast(1.05); }
+    .figbot-word{
+      font-size:34px;
+      line-height:1;
+      letter-spacing:.02em;
+      text-transform:uppercase;
+      font-weight:900;
+      color: rgba(255,255,255,.92);
+      text-shadow:
+        0 0 18px rgba(255,79,216,.28),
+        0 0 24px rgba(45,212,191,.20),
+        2px 2px 0 rgba(0,0,0,.35);
+      -webkit-text-stroke: 1px rgba(0,0,0,.35);
+    }
+    .figbot-tag{
+      margin-top:6px;
+      font-size:12px;
+      color: rgba(244,246,255,.75);
+      letter-spacing:.12em;
+      text-transform:uppercase;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
+    .art-control{
+      margin-top:10px;
+      border-top:1px solid rgba(255,255,255,.10);
+      padding-top:10px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      color: rgba(244,246,255,.75);
+      font-size:12px;
+    }
+    .art-control input[type="range"]{ width:140px; }
+    .sub{
+      margin-top:8px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      color:rgba(244,246,255,.72);
+      font-size:12px;
     }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-      animation: rise 0.6s ease both;
-    }
-
-    .card:nth-child(1) { animation-delay: 0.05s; }
-    .card:nth-child(2) { animation-delay: 0.1s; }
-    .card:nth-child(3) { animation-delay: 0.15s; }
-    .card:nth-child(4) { animation-delay: 0.2s; }
-    .card:nth-child(5) { animation-delay: 0.25s; }
-    .card:nth-child(6) { animation-delay: 0.3s; }
-    .card:nth-child(7) { animation-delay: 0.35s; }
-
-    h2 {
-      margin: 0 0 10px 0;
-      font-size: 16px;
-      letter-spacing: 0.4px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border);
-      padding: 10px;
-      border-radius: 10px;
-      color: var(--text);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-
-    td, th {
-      border-bottom: 1px solid var(--border);
-      padding: 6px;
-      text-align: left;
-      color: var(--text);
-    }
-
-    th {
-      color: var(--muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      font-size: 11px;
-    }
-
-    .controls {
-      display: grid;
-      gap: 10px;
-    }
-
-    .row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    button {
-      background: linear-gradient(135deg, var(--accent), #2dd4bf);
-      color: #061018;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    button.secondary {
-      background: linear-gradient(135deg, #f97316, var(--accent2));
-      color: #18120b;
-    }
-
-    input {
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px 10px;
-      width: 100%;
-    }
-
-    .status-line {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 8px;
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.20);
       border-radius: 999px;
-      background: rgba(0, 212, 255, 0.15);
-      border: 1px solid rgba(0, 212, 255, 0.3);
-      font-size: 11px;
-      color: var(--accent);
+      font-weight:650;
+      letter-spacing:.02em;
+      white-space:nowrap;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: rgba(148,163,184,.65);
+      box-shadow: 0 0 0 4px rgba(148,163,184,.12);
+    }
+    .dot.live{
+      background: var(--good);
+      box-shadow: 0 0 0 5px rgba(52,211,153,.16), 0 0 28px rgba(52,211,153,.25);
+      animation:pulse 1.8s ease-in-out infinite;
+    }
+    .dot.dead{
+      background: var(--bad);
+      box-shadow: 0 0 0 5px rgba(251,113,133,.14), 0 0 22px rgba(251,113,133,.20);
+    }
+    @keyframes pulse{
+      0%,100%{ transform:scale(1); opacity:1; }
+      50%{ transform:scale(1.12); opacity:.7; }
+    }
+    @media (prefers-reduced-motion: reduce){
+      *{ animation:none !important; transition:none !important; }
     }
 
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
+    .nav{
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      backdrop-filter: blur(16px);
+      border-radius: 18px var(--r2) 22px var(--r3) / var(--r3) 18px var(--r2) 22px;
+      box-shadow: var(--shadow2);
+      padding:10px;
+      overflow:hidden;
+    }
+    .nav a{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 10px;
+      border-radius:14px;
+      text-decoration:none;
+      color:rgba(244,246,255,.86);
+      font-weight:650;
+      letter-spacing:.01em;
+      border:1px solid transparent;
+      position:relative;
+    }
+    .nav a:hover{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.10);
+    }
+    .nav a.active{
+      background: linear-gradient(135deg, rgba(255,79,216,.16), rgba(45,212,191,.10));
+      border-color: rgba(255,255,255,.14);
+    }
+    .nav svg{ opacity:.85; }
+    .nav small{
+      margin-left:auto;
+      color:rgba(244,246,255,.62);
+      font-weight:700;
+      font-size:11px;
+      padding:2px 8px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:999px;
+      background: rgba(0,0,0,.22);
     }
 
-    @media (max-width: 980px) {
-      .grid { grid-template-columns: 1fr; }
-      .topbar { flex-direction: column; align-items: flex-start; }
+    .sidebar-footer{
+      margin-top:auto;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.025);
+      backdrop-filter: blur(14px);
+      border-radius: 16px;
+      padding:12px;
+      color:rgba(244,246,255,.70);
+      font-size:12px;
     }
+    .kbd{
+      display:inline-flex;
+      padding:2px 6px;
+      border-radius:7px;
+      border:1px solid rgba(255,255,255,.15);
+      background: rgba(0,0,0,.20);
+      font-weight:750;
+      color:rgba(244,246,255,.84);
+      font-size:11px;
+      margin:0 3px;
+    }
+
+    /* Main */
+    .main{
+      padding:18px 18px 60px;
+    }
+    .topbar{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      padding:10px 4px 18px;
+    }
+    .title{
+      font-size:28px;
+      margin:0;
+      letter-spacing:.01em;
+      line-height:1.1;
+    }
+    .meta{
+      margin-top:8px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      color:rgba(244,246,255,.72);
+      font-size:12px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+    }
+
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.05);
+      color:rgba(244,246,255,.92);
+      border-radius:14px;
+      padding:10px 12px;
+      cursor:pointer;
+      font-weight:800;
+      letter-spacing:.02em;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.22);
+      background: rgba(255,255,255,.07);
+    }
+    .btn.primary{
+      border-color: rgba(255,255,255,.18);
+      background: linear-gradient(135deg, rgba(52,211,153,.25), rgba(45,212,191,.14));
+    }
+    .btn.danger{
+      border-color: rgba(255,255,255,.16);
+      background: linear-gradient(135deg, rgba(251,113,133,.26), rgba(255,79,216,.14));
+    }
+    .btn:disabled{
+      cursor:not-allowed;
+      opacity:.55;
+      transform:none;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap:14px;
+    }
+    @media (max-width: 1200px){
+      .grid{ grid-template-columns: repeat(6, 1fr); }
+    }
+    @media (max-width: 700px){
+      .grid{ grid-template-columns: repeat(1, 1fr); }
+    }
+
+    .card{
+      border:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      backdrop-filter: blur(18px);
+      border-radius: 24px 18px 26px 20px / 18px 26px 18px 24px;
+      box-shadow: var(--shadow);
+      padding:14px 14px 12px;
+      overflow:hidden;
+      position:relative;
+    }
+    .card::after{
+      content:"";
+      position:absolute; inset:-1px;
+      background:
+        radial-gradient(520px 160px at 20% 0%, rgba(255,79,216,.14), transparent 60%),
+        radial-gradient(520px 160px at 90% 20%, rgba(45,212,191,.12), transparent 60%),
+        radial-gradient(520px 160px at 60% 120%, rgba(139,92,246,.12), transparent 60%);
+      opacity:.55;
+      pointer-events:none;
+      filter: blur(14px);
+    }
+    .card > *{ position:relative; }
+    .card h2{
+      margin:0 0 10px;
+      font-size:14px;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      color: rgba(244,246,255,.80);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .scribble{
+      width:18px; height:18px;
+      border-radius:6px;
+      background:
+        linear-gradient(135deg, rgba(255,79,216,.55), rgba(45,212,191,.35));
+      box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 18px rgba(255,79,216,.12);
+      transform: rotate(-8deg);
+    }
+
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap:10px;
+    }
+    @media (max-width: 1200px){
+      .kpis{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 700px){
+      .kpis{ grid-template-columns: repeat(1, minmax(0,1fr)); }
+    }
+
+    .kpi{
+      border:1px dashed rgba(255,255,255,.16);
+      background: rgba(0,0,0,.18);
+      border-radius: 16px;
+      padding:12px;
+    }
+    .kpi .label{
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(244,246,255,.68);
+    }
+    .kpi .value{
+      font-size:22px;
+      font-weight:900;
+      margin-top:6px;
+      letter-spacing:.01em;
+    }
+    .kpi .hint{
+      margin-top:6px;
+      font-size:12px;
+      color:rgba(244,246,255,.62);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:5px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color:rgba(244,246,255,.78);
+      font-weight:750;
+      font-size:12px;
+    }
+    .chip.ok{ border-color: rgba(52,211,153,.28); }
+    .chip.bad{ border-color: rgba(251,113,133,.28); }
+
+    .form{
+      display:grid;
+      gap:10px;
+    }
+    .field{
+      display:grid;
+      gap:6px;
+    }
+    label{
+      font-size:12px;
+      color:rgba(244,246,255,.72);
+      letter-spacing:.04em;
+    }
+    input, textarea, select{
+      width:100%;
+      background: rgba(0,0,0,.22);
+      color:rgba(244,246,255,.92);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding:10px 11px;
+      outline:none;
+    }
+    input:focus, textarea:focus, select:focus{
+      border-color: rgba(45,212,191,.36);
+      box-shadow: 0 0 0 4px rgba(45,212,191,.10);
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .row > * { flex: 1 1 160px; }
+    .row .btn{ flex: 0 0 auto; }
+
+    /* tables */
+    .table-tools{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .table-tools .left{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .table-tools input{
+      max-width: 340px;
+    }
+
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      font-size:12px;
+      overflow:hidden;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.16);
+    }
+    thead th{
+      position:sticky;
+      top:0;
+      background: rgba(0,0,0,.30);
+      backdrop-filter: blur(10px);
+      text-align:left;
+      padding:10px 10px;
+      color: rgba(244,246,255,.72);
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:11px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      cursor:pointer;
+      user-select:none;
+    }
+    tbody td{
+      padding:9px 10px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      color: rgba(244,246,255,.86);
+      vertical-align:top;
+    }
+    tbody tr:hover td{
+      background: rgba(255,255,255,.035);
+    }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      font-weight:800;
+      letter-spacing:.02em;
+      white-space:nowrap;
+    }
+    .badge.good{ border-color: rgba(52,211,153,.30); }
+    .badge.bad{ border-color: rgba(251,113,133,.30); }
+    .badge.neutral{ border-color: rgba(148,163,184,.24); }
+    .bar{
+      height:6px;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      overflow:hidden;
+      margin-top:6px;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(45,212,191,.85), rgba(255,79,216,.70));
+    }
+
+    .two{
+      display:grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap:12px;
+    }
+    @media (max-width: 1200px){
+      .two{ grid-template-columns: 1fr; }
+    }
+
+    .chart-wrap{
+      border:1px dashed rgba(255,255,255,.16);
+      background: rgba(0,0,0,.16);
+      border-radius: 16px;
+      padding:10px;
+    }
+    canvas{ width:100%; height:150px; display:block; }
+    .legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+      color:rgba(244,246,255,.68);
+      font-size:12px;
+    }
+    .key{
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .swatch{
+      width:10px; height:10px; border-radius:3px;
+      background: linear-gradient(135deg, rgba(45,212,191,.9), rgba(255,79,216,.8));
+    }
+    .swatch2{ background: linear-gradient(135deg, rgba(139,92,246,.9), rgba(245,158,11,.8)); }
+
+    /* Toasts */
+    .toasts{
+      position:fixed;
+      right:14px; bottom:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      z-index:50;
+    }
+    .toast{
+      width:min(420px, calc(100vw - 28px));
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,12,18,.70);
+      backdrop-filter: blur(18px);
+      border-radius: 16px;
+      box-shadow: 0 18px 48px rgba(0,0,0,.50);
+      padding:10px 12px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      animation: rise .18s ease-out;
+    }
+    @keyframes rise{
+      from{ transform: translateY(10px); opacity:0; }
+      to{ transform: translateY(0); opacity:1; }
+    }
+    .toast .ticon{
+      width:26px; height:26px; border-radius:8px;
+      background: rgba(255,255,255,.06);
+      display:grid; place-items:center;
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .toast .tmain{ flex:1; }
+    .toast .ttitle{ font-weight:900; margin:0; font-size:13px; }
+    .toast .tmsg{ margin:4px 0 0; font-size:12px; color:rgba(244,246,255,.72); }
+    .toast .tclose{
+      border:none; background:transparent; color:rgba(244,246,255,.70);
+      cursor:pointer; padding:4px 6px; border-radius:10px;
+    }
+    .toast .tclose:hover{ background: rgba(255,255,255,.06); }
+
+    /* Section anchors */
+    section{ scroll-margin-top: 18px; }
+    .section-title{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      margin: 0 0 6px;
+    }
+    .section-title .right{
+      color:rgba(244,246,255,.62);
+      font-size:12px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .smalllink{
+      color: rgba(244,246,255,.72);
+      text-decoration:none;
+      border-bottom:1px dashed rgba(255,255,255,.22);
+    }
+    .smalllink:hover{ color: rgba(244,246,255,.92); }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="topbar">
-      <div>
-        <div class="subtitle">Democratic Intelligence</div>
-        <div class="title">Trading Command Center</div>
+  <canvas class="bg-canvas" id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="bg-art" aria-hidden="true"></div>
+  <div class="bg-gg" aria-hidden="true"></div>
+  <div class="bg-mandala" aria-hidden="true"></div>
+  <div class="bg-banner" aria-hidden="true"></div>
+  <div class="bg-vignette" aria-hidden="true"></div>
+  <div class="noise" aria-hidden="true"></div>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-inner">
+          <div class="kicker">Democratic Intelligence</div>
+          <div class="figmark">
+            <img class="figlogo" src="/assets/figbot_logo.png" alt="Figbot logo" />
+            <div class="figbot-word">FIGBOT<small>Trading Command Center</small></div>
+          </div>
+          <div class="sub">
+            <span class="pill"><span id="live-dot" class="dot"></span><span id="live-text">Booting…</span></span>
+            <span class="pill mono" id="clock">--:--:--</span>
+          </div>
+        </div>
       </div>
-      <span class="pill">Live</span>
-    </div>
-    <div class="grid">
-    <div class="card">
-      <h2>Stats</h2>
-      <pre id="stats">Loading...</pre>
-    </div>
-    <div class="card">
-      <h2>Controls</h2>
-      <div class="controls">
-        <div class="row">
-          <button id="btn-start">Start</button>
-          <button id="btn-stop" class="secondary">Stop</button>
+
+      <nav class="nav" id="nav">
+        <a href="#overview" class="active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 11.5V20a1 1 0 0 0 1 1h5v-7h4v7h5a1 1 0 0 0 1-1v-8.5a1 1 0 0 0-.35-.76l-7-6a1 1 0 0 0-1.3 0l-7 6A1 1 0 0 0 4 11.5Z" stroke="currentColor" stroke-width="1.7"/></svg>
+          Overview <small id="nav-cycles">0</small>
+        </a>
+        <a href="#system">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M4.22 5.22l2.12 2.12m11.32 11.32 2.12 2.12M3 12h3m12 0h3M4.22 18.78l2.12-2.12m11.32-11.32 2.12-2.12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" stroke="currentColor" stroke-width="1.7"/></svg>
+          System
+        </a>
+        <a href="#experts">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0v2a4 4 0 1 0 8 0v-2Z" stroke="currentColor" stroke-width="1.7"/><path d="M6 21h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Experts
+        </a>
+        <a href="#predictions">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 15l4-4 3 3 6-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Predictions
+        </a>
+        <a href="#calls">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 8h8M8 12h5M7 21h10a2 2 0 0 0 2-2V7l-4-4H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Model Calls
+        </a>
+        <a href="#trades">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7V7Z" stroke="currentColor" stroke-width="1.7"/><path d="M4 9V5a1 1 0 0 1 1-1h4M20 15v4a1 1 0 0 1-1 1h-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Trades
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div><span class="kbd">/</span> search current table</div>
+        <div><span class="kbd">R</span> refresh now</div>
+        <div class="art-control" style="margin-top:12px;">
+          <span class="label">Art intensity</span>
+          <input id="art" type="range" min="0" max="100" value="82" />
+          <span class="val mono" id="artv">82</span>
         </div>
-        <div>
-          <label>Cycle seconds</label><br/>
-          <input id="cycle-seconds" type="number" min="1" value="60" />
+
+        <div class="art-strip" aria-label="Art samples">
+          <button class="thumb" data-src="/assets/gg.jpg" title="GG"><img src="/assets/gg.jpg" alt="GG art" /></button>
+          <button class="thumb" data-src="/assets/ggg.jpg" title="GGG"><img src="/assets/ggg.jpg" alt="GGG art" /></button>
+          <button class="thumb" data-src="/assets/gggg.jpg" title="Mandala"><img src="/assets/gggg.jpg" alt="Mandala" /></button>
+          <button class="thumb" data-src="/assets/g_scribble.jpg" title="Scribble"><img src="/assets/g_scribble.jpg" alt="Scribble" /></button>
         </div>
-        <div>
-          <label>Timeframes (comma)</label><br/>
-          <input id="cycle-timeframes" type="text" value="5s,30s,1m,5m,15m" />
-        </div>
-        <button id="btn-apply">Apply</button>
-        <div id="status-line" class="status-line"></div>
-        <pre id="status">Loading...</pre>
       </div>
-    </div>
-    <div class="card">
-      <h2>System Metrics</h2>
-      <table id="metrics"></table>
-    </div>
-    <div class="card">
-      <h2>Top Experts (Weights)</h2>
-      <table id="experts"></table>
-    </div>
-    <div class="card">
-      <h2>Recent Predictions</h2>
-      <table id="preds"></table>
-    </div>
-    <div class="card">
-      <h2>Recent Model Calls</h2>
-      <table id="calls"></table>
-    </div>
-    <div class="card">
-      <h2>Recent Trades</h2>
-      <table id="trades"></table>
-    </div>
-    </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2 class="title">Your bots, but make it art.</h2>
+          <div class="meta">
+            <span class="chip" id="chip-state">State: …</span>
+            <span class="chip" id="chip-tf">Last TF: –</span>
+            <span class="chip" id="chip-cyc">Cycles: 0</span>
+            <span class="chip bad" id="chip-err" style="display:none;">Error</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btn-refresh" class="btn" title="Refresh (R)">
+            <span class="mono">↻</span> Refresh
+          </button>
+          <button id="btn-start" class="btn primary">
+            <span class="mono">▶</span> Start
+          </button>
+          <button id="btn-stop" class="btn danger">
+            <span class="mono">■</span> Stop
+          </button>
+          <button id="btn-auto" class="btn" aria-pressed="true" title="Toggle auto-refresh">
+            <span class="mono">⟲</span> Auto
+          </button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Overview -->
+        <section id="overview" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> Overview</h2>
+            <div class="right">
+              <span class="mono" id="last-updated">Last update: –</span>
+              <a class="smalllink" href="/health" target="_blank" rel="noreferrer">health</a>
+            </div>
+          </div>
+          <div class="two">
+            <div class="kpis" id="kpis">
+              <!-- populated -->
+            </div>
+
+            <div class="card" style="padding:12px; box-shadow:none; background: rgba(0,0,0,.16);">
+              <h2><span class="scribble"></span> Controls</h2>
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label for="cycle-seconds">Cycle seconds</label>
+                    <input id="cycle-seconds" type="number" min="1" value="60" />
+                  </div>
+                  <div class="field">
+                    <label for="cycle-timeframes">Timeframes (comma)</label>
+                    <input id="cycle-timeframes" type="text" value="5s,30s,1m,5m,15m" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <button id="btn-apply" class="btn primary"><span class="mono">✓</span> Apply</button>
+                  <button id="btn-preset-fast" class="btn" title="Fast presets">Fast</button>
+                  <button id="btn-preset-sane" class="btn" title="Sane presets">Sane</button>
+                </div>
+
+                <div class="hint" id="config-hint" style="min-height:18px;"></div>
+                <div class="bar" aria-hidden="true"><i id="confbar"></i></div>
+
+                <div class="field">
+                  <label>Status JSON</label>
+                  <textarea id="status-json" rows="7" spellcheck="false" class="mono"></textarea>
+                </div>
+                <div class="field">
+                  <label>Provider Status</label>
+                  <div id="provider-badges" class="row" style="margin-bottom:8px;"></div>
+                  <textarea id="provider-json" rows="6" spellcheck="false" class="mono"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- System -->
+        <section id="system" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> System</h2>
+            <div class="right">
+              <span class="chip neutral" id="chip-mem">Mem: –</span>
+              <span class="chip neutral" id="chip-cpu">CPU: –</span>
+              <span class="chip neutral" id="chip-ms">Cycle: –</span>
+            </div>
+          </div>
+
+          <div class="two">
+            <div class="chart-wrap">
+              <canvas id="chart" width="1000" height="260" aria-label="System metrics chart"></canvas>
+              <div class="legend">
+                <span class="key"><span class="swatch"></span> CPU% + Mem (scaled)</span>
+                <span class="key"><span class="swatch swatch2"></span> Cycle ms (scaled)</span>
+                <span class="key mono" id="chart-note">–</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="table-tools">
+                <div class="left">
+                  <span class="chip">Latest 15</span>
+                </div>
+                <button class="btn" id="btn-copy-metrics" title="Copy as CSV">Copy CSV</button>
+              </div>
+              <table id="tbl-metrics"></table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Experts -->
+        <section id="experts" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> Experts</h2>
+            <div class="right">
+              <span class="chip">Leaderboard</span>
+              <input id="q-experts" placeholder="Filter experts… ( / )" />
+            </div>
+          </div>
+          <div class="table-tools">
+            <div class="left">
+              <span class="chip neutral" id="experts-count">0 rows</span>
+            </div>
+            <button class="btn" id="btn-copy-experts">Copy CSV</button>
+          </div>
+          <table id="tbl-experts"></table>
+        </section>
+
+        <!-- Predictions -->
+        <section id="predictions" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> Predictions</h2>
+            <div class="right">
+              <span class="chip">Recent</span>
+              <input id="q-preds" placeholder="Filter predictions…" />
+            </div>
+          </div>
+          <div class="table-tools">
+            <div class="left">
+              <span class="chip neutral" id="preds-count">0 rows</span>
+              <span class="chip neutral" id="preds-acc">—</span>
+            </div>
+            <button class="btn" id="btn-copy-preds">Copy CSV</button>
+          </div>
+          <table id="tbl-preds"></table>
+        </section>
+
+        <!-- Calls -->
+        <section id="calls" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> Model Calls</h2>
+            <div class="right">
+              <span class="chip">Recent</span>
+              <input id="q-calls" placeholder="Filter calls…" />
+            </div>
+          </div>
+          <div class="table-tools">
+            <div class="left">
+              <span class="chip neutral" id="calls-count">0 rows</span>
+              <span class="chip neutral" id="calls-ok">—</span>
+            </div>
+            <button class="btn" id="btn-copy-calls">Copy CSV</button>
+          </div>
+          <table id="tbl-calls"></table>
+        </section>
+
+        <!-- Trades -->
+        <section id="trades" class="card" style="grid-column: span 12;">
+          <div class="section-title">
+            <h2><span class="scribble"></span> Trades</h2>
+            <div class="right">
+              <span class="chip">Recent</span>
+              <input id="q-trades" placeholder="Filter trades…" />
+            </div>
+          </div>
+          <div class="table-tools">
+            <div class="left">
+              <span class="chip neutral" id="trades-count">0 rows</span>
+            </div>
+            <button class="btn" id="btn-copy-trades">Copy CSV</button>
+          </div>
+          <table id="tbl-trades"></table>
+        </section>
+      </div>
+    </main>
   </div>
 
-<script>
-async function j(url){ return (await fetch(url)).json(); }
+  <div class="toasts" id="toasts" aria-live="polite" aria-relevant="additions"></div>
 
-function table(el, headers, rows){
-  el.innerHTML = "";
-  const thead = document.createElement("tr");
-  headers.forEach(h=>{ const th=document.createElement("th"); th.textContent=h; thead.appendChild(th); });
-  el.appendChild(thead);
-  rows.forEach(r=>{
-    const tr=document.createElement("tr");
-    r.forEach(v=>{ const td=document.createElement("td"); td.textContent=v; tr.appendChild(td); });
-    el.appendChild(tr);
-  });
-}
+  <script>
+    // ---------- tiny helpers ----------
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-async function refresh(){
-  const stats = await j("/api/stats");
-  document.getElementById("stats").textContent = JSON.stringify(stats, null, 2);
+    // ---------- ggg scribble background ----------
+    function initScribbleBg(){
+      const canvas = $("#bg-canvas");
+      if(!canvas) return;
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(reduce) return;
 
-  const status = await j("/status");
-  document.getElementById("status").textContent = JSON.stringify(status, null, 2);
-  const statusLine = document.getElementById("status-line");
-  const running = status.running ? "RUNNING" : "STOPPED";
-  const tf = status.last_timeframe || "-";
-  const invalid = (status.invalid_timeframes || []).join(", ");
-  statusLine.textContent = `State: ${running} | Last TF: ${tf}` + (invalid ? ` | Invalid TFs: ${invalid}` : "");
-  if (status.cycle_seconds) {
-    document.getElementById("cycle-seconds").value = status.cycle_seconds;
-  }
-  if (status.cycle_timeframes) {
-    document.getElementById("cycle-timeframes").value = status.cycle_timeframes.join(",");
-  }
+      const ctx = canvas.getContext("2d", { alpha: true });
+      const palette = ["#ff4fd8","#2dd4bf","#8b5cf6","#f97316","#22c55e","#60a5fa","#f59e0b"];
+      let W = 0, H = 0, DPR = 1;
 
-  const experts = await j("/api/experts/leaderboard");
-  table(document.getElementById("experts"),
-        ["expert","ema","w","n"],
-        experts.slice(0,15).map(x=>[x.expert, x.ema_score, x.weight, x.samples]));
+      function resize(){
+        DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        W = Math.floor(window.innerWidth * DPR);
+        H = Math.floor(window.innerHeight * DPR);
+        canvas.width = W;
+        canvas.height = H;
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.scale(DPR, DPR);
+        // soft clear
+        ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+      }
+      window.addEventListener("resize", resize, { passive:true });
+      resize();
 
-  const metrics = await j("/api/system/metrics");
-  table(document.getElementById("metrics"),
-        ["time","ms","assets","news","picks","eval","traded","memMB","cpu%"],
-        metrics.slice(0,15).map(x=>[
-          x.timestamp.split("T")[1] || x.timestamp,
-          x.cycle_ms, x.assets_count, x.news_count,
-          x.picks_stored, x.evaluated_count, x.traded,
-          x.memory_mb ? x.memory_mb.toFixed(1) : "",
-          x.cpu_pct ? x.cpu_pct.toFixed(1) : ""
-        ]));
+      // scribblers = random walkers that leave trails
+      const N = Math.min(54, Math.max(26, Math.floor((window.innerWidth * window.innerHeight) / 38000)));
+      const scribblers = Array.from({length:N}, () => {
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        const a = Math.random() * Math.PI * 2;
+        const sp = 0.35 + Math.random() * 1.15;
+        return {
+          x, y, px:x, py:y,
+          vx: Math.cos(a)*sp,
+          vy: Math.sin(a)*sp,
+          w: 0.6 + Math.random()*2.1,
+          hue: palette[Math.floor(Math.random()*palette.length)],
+          life: 80 + Math.random()*220,
+        };
+      });
 
-  const preds = await j("/api/predictions/recent");
-  table(document.getElementById("preds"),
-        ["time","asset","tf","dir","conf","exp%","score","model/style"],
-        preds.slice(0,25).map(x=>[
-          x.timestamp.split("T")[1] || x.timestamp,
-          x.asset, x.timeframe, x.direction,
-          x.confidence, x.expected_change_percent,
-          x.score === null ? "" : x.score,
-          (x.model + " / " + x.thinking_style).slice(0,60)
-        ]));
+      let last = performance.now();
+      let acc = 0;
 
-  const calls = await j("/api/calls/recent");
-  table(document.getElementById("calls"),
-        ["time","prov","model","ok","ms","err"],
-        calls.slice(0,25).map(x=>[
-          x.timestamp.split("T")[1] || x.timestamp,
-          x.provider, (x.model||"").slice(0,20),
-          x.ok, x.latency_ms, (x.error||"").slice(0,40)
-        ]));
+      function tick(now){
+        const dt = Math.min(32, now - last);
+        last = now;
+        acc += dt;
 
-  const trades = await j("/api/trades/recent");
-  table(document.getElementById("trades"),
-        ["time","asset","action","qty","price","stop"],
-        trades.slice(0,25).map(x=>[
-          x.timestamp.split("T")[1] || x.timestamp,
-          x.asset, x.action, x.quantity, x.price, x.stop_loss
-        ]));
-}
+        // ~30fps update (lighter on CPU)
+        if(acc < 33){ requestAnimationFrame(tick); return; }
+        acc = 0;
 
-document.getElementById("btn-start").addEventListener("click", async () => {
-  await fetch("/start", { method: "POST" });
-  refresh();
-});
-document.getElementById("btn-stop").addEventListener("click", async () => {
-  await fetch("/stop", { method: "POST" });
-  refresh();
-});
-document.getElementById("btn-apply").addEventListener("click", async () => {
-  const cycleSeconds = document.getElementById("cycle-seconds").value;
-  const timeframes = document.getElementById("cycle-timeframes").value;
-  await fetch("/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cycle_seconds: cycleSeconds, timeframes })
-  });
-  refresh();
-});
+        // fade the previous frame (trail)
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = "rgba(0,0,0,1)";
+        ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
+        ctx.restore();
 
-refresh();
-setInterval(refresh, 3000);
-</script>
+        // scribble strokes
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for(const s of scribblers){
+          s.px = s.x; s.py = s.y;
+
+          // random walk with gentle curl
+          const jitter = 0.18;
+          s.vx += (Math.random()-0.5)*jitter;
+          s.vy += (Math.random()-0.5)*jitter;
+
+          // swirl toward center very slightly (keeps density)
+          const cx = window.innerWidth/2, cy = window.innerHeight/2;
+          s.vx += (cx - s.x) * 0.000002;
+          s.vy += (cy - s.y) * 0.000002;
+
+          // clamp speed
+          const sp = Math.hypot(s.vx,s.vy);
+          const max = 2.2;
+          if(sp > max){ s.vx *= max/sp; s.vy *= max/sp; }
+
+          s.x += s.vx;
+          s.y += s.vy;
+
+          // bounce edges
+          if(s.x < 0 || s.x > window.innerWidth){ s.vx *= -1; s.x = Math.max(0, Math.min(window.innerWidth, s.x)); }
+          if(s.y < 0 || s.y > window.innerHeight){ s.vy *= -1; s.y = Math.max(0, Math.min(window.innerHeight, s.y)); }
+
+          ctx.strokeStyle = s.hue;
+          ctx.lineWidth = s.w;
+          ctx.globalAlpha = 0.055;
+          ctx.beginPath();
+          ctx.moveTo(s.px, s.py);
+          // add micro-curve for "scribble"
+          const mx = (s.px + s.x)/2 + (Math.random()-0.5)*6;
+          const my = (s.py + s.y)/2 + (Math.random()-0.5)*6;
+          ctx.quadraticCurveTo(mx, my, s.x, s.y);
+          ctx.stroke();
+
+          s.life -= 1;
+          if(s.life <= 0){
+            s.x = Math.random()*window.innerWidth;
+            s.y = Math.random()*window.innerHeight;
+            s.vx = (Math.random()-0.5)*2.2;
+            s.vy = (Math.random()-0.5)*2.2;
+            s.w = 0.6 + Math.random()*2.1;
+            s.hue = palette[Math.floor(Math.random()*palette.length)];
+            s.life = 80 + Math.random()*220;
+          }
+        }
+        ctx.restore();
+
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+
+    function fmt(n, d=0){
+      if (n === null || n === undefined || Number.isNaN(Number(n))) return "—";
+      const x = Number(n);
+      return x.toLocaleString(undefined, { maximumFractionDigits:d, minimumFractionDigits:d });
+    }
+
+    function timeOnly(iso){
+      if (!iso) return "—";
+      const t = String(iso).split("T")[1] || iso;
+      return t.replace("Z","").slice(0,8);
+    }
+
+    async function fetchJSON(url, {timeoutMs=12000} = {}){
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try{
+        const r = await fetch(url, { signal: ctrl.signal });
+        if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return await r.json();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    function toast(title, msg, kind="neutral"){
+      const host = $("#toasts");
+      const el = document.createElement("div");
+      el.className = "toast";
+      const icon = kind === "good" ? "✓" : kind === "bad" ? "!" : "•";
+      el.innerHTML = `
+        <div class="ticon mono">${icon}</div>
+        <div class="tmain">
+          <p class="ttitle">${title}</p>
+          <p class="tmsg">${msg || ""}</p>
+        </div>
+        <button class="tclose" aria-label="Dismiss">✕</button>
+      `;
+      el.querySelector(".tclose").addEventListener("click", ()=> el.remove());
+      host.appendChild(el);
+      setTimeout(()=> el.remove(), 5200);
+    }
+
+    function toCSV(rows){
+      const esc = (v) => `"${String(v ?? "").replaceAll('"','""')}"`;
+      return rows.map(r => r.map(esc).join(",")).join("\\n");
+    }
+    async function copyText(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        toast("Copied", "CSV is in your clipboard.", "good");
+      }catch(e){
+        toast("Copy failed", "Clipboard permission blocked. Try selecting text manually.", "bad");
+      }
+    }
+
+    // ---------- table builder with sorting ----------
+    function renderTable(el, columns, rows, {sortKey=null, sortDir=1, cellFormat={}} = {}){
+      el.innerHTML = "";
+      const table = el;
+
+      const thead = document.createElement("thead");
+      const trh = document.createElement("tr");
+      columns.forEach(col => {
+        const th = document.createElement("th");
+        th.textContent = col.label;
+        th.dataset.key = col.key;
+        if (col.key === sortKey) th.textContent = `${col.label} ${sortDir === 1 ? "▲" : "▼"}`;
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement("tbody");
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        columns.forEach(col => {
+          const td = document.createElement("td");
+          const raw = r[col.key];
+          const f = cellFormat[col.key];
+          if (f) {
+            td.appendChild(f(raw, r));
+          } else {
+            td.textContent = raw ?? "";
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+
+      return {
+        attachSort(onSort){
+          thead.addEventListener("click", (e) => {
+            const th = e.target.closest("th");
+            if(!th) return;
+            const key = th.dataset.key;
+            onSort(key);
+          });
+        }
+      };
+    }
+
+    function badge(text, kind="neutral"){
+      const s = document.createElement("span");
+      s.className = `badge ${kind}`;
+      s.textContent = text;
+      return s;
+    }
+
+    function frag(...nodes){
+      const f = document.createDocumentFragment();
+      nodes.forEach(n=> f.appendChild(n));
+      return f;
+    }
+
+    // ---------- chart ----------
+    function drawChart(canvas, metrics){
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0,0,W,H);
+
+      // background grid
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(0,0,0,.0)";
+      ctx.fillRect(0,0,W,H);
+      ctx.strokeStyle = "rgba(255,255,255,.07)";
+      ctx.lineWidth = 1;
+
+      const gx = 10, gy = 6;
+      for(let i=1;i<gx;i++){
+        const x = (W/gx)*i;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for(let i=1;i<gy;i++){
+        const y = (H/gy)*i;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      const pts = metrics.slice().reverse().slice(0,60).reverse();
+      if(pts.length < 2){
+        ctx.fillStyle = "rgba(244,246,255,.65)";
+        ctx.font = "14px ui-monospace, monospace";
+        ctx.fillText("Not enough system metrics yet…", 12, 24);
+        return;
+      }
+
+      const cpu = pts.map(p => Number(p.cpu_pct || 0));
+      const mem = pts.map(p => Number(p.memory_mb || 0));
+      const ms  = pts.map(p => Number(p.cycle_ms || 0));
+
+      const maxCPU = Math.max(5, ...cpu);
+      const maxMem = Math.max(5, ...mem);
+      const maxMS  = Math.max(10, ...ms);
+
+      const mapY = (v, vmax) => H - 12 - ( (v / vmax) * (H - 24) );
+      const mapX = (i) => 12 + (i/(pts.length-1)) * (W - 24);
+
+      // line 1: CPU+Mem blended (scaled)
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "rgba(45,212,191,.85)";
+      ctx.beginPath();
+      pts.forEach((p,i)=>{
+        const v = (cpu[i]/maxCPU)*0.55 + (mem[i]/maxMem)*0.45;
+        const x = mapX(i);
+        const y = mapY(v, 1);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+
+      // glow
+      ctx.globalAlpha = .25;
+      ctx.lineWidth = 7.5;
+      ctx.strokeStyle = "rgba(255,79,216,.55)";
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // line 2: cycle ms scaled
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "rgba(139,92,246,.90)";
+      ctx.beginPath();
+      pts.forEach((p,i)=>{
+        const x = mapX(i);
+        const y = mapY(ms[i], maxMS);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+
+      // label
+      ctx.fillStyle = "rgba(244,246,255,.72)";
+      ctx.font = "12px ui-monospace, monospace";
+      const last = pts[pts.length-1];
+      ctx.fillText(`CPU ${fmt(last.cpu_pct,1)}% • Mem ${fmt(last.memory_mb,1)} MB • Cycle ${fmt(last.cycle_ms)} ms`, 12, H-10);
+    }
+
+    // ---------- app state ----------
+    let auto = true;
+    let timer = null;
+
+    const state = {
+      sort: {
+        metrics: {key:"timestamp", dir:-1},
+        experts: {key:"weight", dir:-1},
+        preds:   {key:"timestamp", dir:-1},
+        calls:   {key:"timestamp", dir:-1},
+        trades:  {key:"timestamp", dir:-1}
+      },
+      data: {
+        metrics: [],
+        experts: [],
+        preds: [],
+        calls: [],
+        trades: []
+      }
+    };
+
+    function setLive(running){
+      const dot = $("#live-dot");
+      const txt = $("#live-text");
+      dot.classList.remove("live","dead");
+      if(running === true){
+        dot.classList.add("live");
+        txt.textContent = "Running";
+      }else if(running === false){
+        dot.classList.add("dead");
+        txt.textContent = "Stopped";
+      }else{
+        txt.textContent = "Unknown";
+      }
+    }
+
+    function updateClock(){
+      const d = new Date();
+      const t = d.toLocaleTimeString(undefined, {hour12:false});
+      $("#clock").textContent = t;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    initScribbleBg();
+
+    function setNavActive(hash){
+      const links = $$("#nav a");
+      links.forEach(a => a.classList.toggle("active", a.getAttribute("href") === hash));
+    }
+    window.addEventListener("hashchange", () => setNavActive(location.hash || "#overview"));
+    setNavActive(location.hash || "#overview");
+
+    // keyboard shortcuts
+    window.addEventListener("keydown", (e)=>{
+      if (e.key === "r" || e.key === "R"){ e.preventDefault(); refreshAll(); }
+      if (e.key === "/"){
+        e.preventDefault();
+        const focused = document.activeElement;
+        if (focused && ["INPUT","TEXTAREA"].includes(focused.tagName)) return;
+        const hash = location.hash || "#experts";
+        const map = {
+          "#experts":"#q-experts",
+          "#predictions":"#q-preds",
+          "#calls":"#q-calls",
+          "#trades":"#q-trades"
+        };
+        const target = map[hash] || "#q-experts";
+        const el = $(target);
+        if(el) el.focus();
+      }
+    });
+
+    // ---------- renderers ----------
+    function renderKPIs(stats, status){
+      const kpis = $("#kpis");
+      const rows = [
+        { label:"Total predictions", value: fmt(stats.total_predictions), hint: `Evaluated: ${fmt(stats.evaluated_predictions)}` },
+        { label:"Avg correctness", value: fmt(stats.avg_correctness_score, 4), hint: "Across evaluated preds" },
+        { label:"Model calls", value: fmt(stats.model_calls), hint: `${fmt(stats.model_calls_ok)} ok` },
+        { label:"Total trades", value: fmt(stats.total_trades), hint: (status.running ? "Trading loop is live" : "Loop is stopped") },
+        { label:"Last timeframe", value: status.last_timeframe || "—", hint: `Last cycle: ${timeOnly(status.last_cycle_ts)}` },
+        { label:"Cycles", value: fmt(status.cycles), hint: status.cycle_seconds ? `${fmt(status.cycle_seconds)}s cadence` : "—" },
+      ];
+      kpis.innerHTML = "";
+      rows.forEach(r => {
+        const el = document.createElement("div");
+        el.className = "kpi";
+        el.innerHTML = `
+          <div class="label">${r.label}</div>
+          <div class="value">${r.value}</div>
+          <div class="hint">${r.hint}</div>
+        `;
+        kpis.appendChild(el);
+      });
+
+      $("#nav-cycles").textContent = fmt(status.cycles || 0);
+      $("#chip-state").textContent = `State: ${status.running ? "RUNNING" : "STOPPED"}`;
+      $("#chip-tf").textContent = `Last TF: ${status.last_timeframe || "—"}`;
+      $("#chip-cyc").textContent = `Cycles: ${fmt(status.cycles || 0)}`;
+
+      const err = $("#chip-err");
+      if (status.last_error){
+        err.style.display = "";
+        err.textContent = `Error: ${(status.last_error || "").slice(0,80)}`;
+      } else {
+        err.style.display = "none";
+      }
+
+      // status json
+      $("#status-json").value = JSON.stringify(status, null, 2);
+      const providerView = {
+        alpaca_ok: status.alpaca_ok,
+        providers: status.providers,
+        fallback_btc_trade: status.fallback_btc_trade,
+        fallback_btc_asset: status.fallback_btc_asset,
+        fallback_btc_order_symbol: status.fallback_btc_order_symbol,
+        fallback_btc_notional: status.fallback_btc_notional
+      };
+      $("#provider-json").value = JSON.stringify(providerView, null, 2);
+      const badgeWrap = $("#provider-badges");
+      badgeWrap.innerHTML = "";
+      const badgeList = [
+        badge(`Alpaca ${status.alpaca_ok ? "OK" : "FAIL"}`, status.alpaca_ok ? "good" : "bad"),
+        badge(`Remote ${status.providers && status.providers.remote && status.providers.remote.enabled ? "ON" : "OFF"}`, status.providers && status.providers.remote && status.providers.remote.enabled ? "good" : "neutral"),
+        badge(`Ollama ${status.providers && status.providers.ollama && status.providers.ollama.enabled ? "ON" : "OFF"}`, status.providers && status.providers.ollama && status.providers.ollama.enabled ? "good" : "neutral"),
+        badge(`Fallback ${status.fallback_btc_trade ? "ON" : "OFF"}`, status.fallback_btc_trade ? "neutral" : "bad"),
+      ];
+      badgeList.forEach(b => badgeWrap.appendChild(b));
+
+      // show invalid timeframes hint
+      const hint = $("#config-hint");
+      const invalid = (status.invalid_timeframes || []).join(", ");
+      if(invalid){
+        hint.innerHTML = `${badge("Invalid TFs", "bad").outerHTML} <span class="mono">${invalid}</span>`;
+      }else{
+        hint.textContent = "";
+      }
+
+      // conf bar: use evaluated/total as "confidence" display
+      const total = Math.max(1, Number(stats.total_predictions || 0));
+      const evald = Number(stats.evaluated_predictions || 0);
+      const pct = Math.min(100, Math.max(0, (evald/total)*100));
+      $("#confbar").style.width = pct.toFixed(0) + "%";
+
+      setLive(status.running);
+    }
+
+    function sortRows(rows, key, dir){
+      const copy = rows.slice();
+      copy.sort((a,b)=>{
+        const va = a[key]; const vb = b[key];
+        const na = Number(va); const nb = Number(vb);
+        const bothNum = !Number.isNaN(na) && !Number.isNaN(nb);
+        if (bothNum) return (na - nb) * dir;
+        return String(va ?? "").localeCompare(String(vb ?? ""), undefined, {numeric:true, sensitivity:"base"}) * dir;
+      });
+      return copy;
+    }
+
+    function filterRows(rows, q){
+      const s = (q || "").trim().toLowerCase();
+      if(!s) return rows;
+      return rows.filter(r => JSON.stringify(r).toLowerCase().includes(s));
+    }
+
+    function renderMetrics(metrics){
+      state.data.metrics = metrics || [];
+      const view = metrics.slice(0,15);
+
+      // chips
+      const last = (metrics && metrics[0]) ? metrics[0] : null;
+      $("#chip-mem").textContent = `Mem: ${last ? fmt(last.memory_mb,1) + " MB" : "—"}`;
+      $("#chip-cpu").textContent = `CPU: ${last ? fmt(last.cpu_pct,1) + "%" : "—"}`;
+      $("#chip-ms").textContent  = `Cycle: ${last ? fmt(last.cycle_ms) + " ms" : "—"}`;
+      $("#chart-note").textContent = last ? ("Last: " + timeOnly(last.timestamp)) : "—";
+
+      drawChart($("#chart"), metrics || []);
+
+      const columns = [
+        {key:"timestamp", label:"time"},
+        {key:"cycle_ms", label:"ms"},
+        {key:"assets_count", label:"assets"},
+        {key:"news_count", label:"news"},
+        {key:"picks_stored", label:"picks"},
+        {key:"evaluated_count", label:"eval"},
+        {key:"traded", label:"traded"},
+        {key:"memory_mb", label:"memMB"},
+        {key:"cpu_pct", label:"cpu%"},
+      ];
+      const cellFormat = {
+        timestamp: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = timeOnly(v); return s; },
+        traded: (v)=> badge(v ? "YES" : "no", v ? "good" : "neutral"),
+        memory_mb: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v,1); return s; },
+        cpu_pct: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v,1); return s; }
+      };
+      const {key, dir} = state.sort.metrics;
+      const rows = sortRows(view, key, dir);
+      const api = renderTable($("#tbl-metrics"), columns, rows, {sortKey:key, sortDir:dir, cellFormat});
+      api.attachSort((k)=>{ state.sort.metrics.dir = (state.sort.metrics.key === k ? -state.sort.metrics.dir : -1); state.sort.metrics.key = k; renderMetrics(state.data.metrics); });
+    }
+
+    function renderExperts(experts){
+      state.data.experts = experts || [];
+      const q = $("#q-experts").value;
+      let rows = filterRows(experts || [], q);
+      $("#experts-count").textContent = `${rows.length} rows`;
+
+      const {key, dir} = state.sort.experts;
+      rows = sortRows(rows, key, dir).slice(0,50);
+
+      const columns = [
+        {key:"expert", label:"expert"},
+        {key:"ema_score", label:"ema"},
+        {key:"weight", label:"w"},
+        {key:"samples", label:"n"},
+        {key:"last_updated", label:"updated"},
+      ];
+      const cellFormat = {
+        expert: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = String(v).slice(0,120); return s; },
+        ema_score: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v,4); return s; },
+        weight: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v,6); return s; },
+        samples: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v); return s; },
+        last_updated: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = timeOnly(v); return s; }
+      };
+      const api = renderTable($("#tbl-experts"), columns, rows, {sortKey:key, sortDir:dir, cellFormat});
+      api.attachSort((k)=>{ state.sort.experts.dir = (state.sort.experts.key === k ? -state.sort.experts.dir : -1); state.sort.experts.key = k; renderExperts(state.data.experts); });
+    }
+
+    function renderPreds(preds){
+      state.data.preds = preds || [];
+      const q = $("#q-preds").value;
+      let rows = filterRows(preds || [], q);
+
+      $("#preds-count").textContent = `${rows.length} rows`;
+
+      const evaluated = rows.filter(r => r.evaluated);
+      const avg = evaluated.length ? evaluated.reduce((a,b)=>a + Number(b.score||0),0) / evaluated.length : null;
+      $("#preds-acc").textContent = evaluated.length ? `Avg score: ${fmt(avg,4)} (${evaluated.length} eval)` : "No eval scores yet";
+
+      const {key, dir} = state.sort.preds;
+      rows = sortRows(rows, key, dir).slice(0,50);
+
+      const columns = [
+        {key:"timestamp", label:"time"},
+        {key:"asset", label:"asset"},
+        {key:"timeframe", label:"tf"},
+        {key:"direction", label:"dir"},
+        {key:"confidence", label:"conf"},
+        {key:"expected_change_percent", label:"exp%"},
+        {key:"score", label:"score"},
+        {key:"model", label:"model"},
+        {key:"thinking_style", label:"style"},
+      ];
+
+      const cellFormat = {
+        timestamp: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent=timeOnly(v); return s; },
+        direction: (v)=> {
+          const dir = String(v||"").toUpperCase();
+          const kind = dir.includes("UP") || dir.includes("BUY") ? "good" : dir.includes("DOWN") || dir.includes("SELL") ? "bad" : "neutral";
+          return badge(dir || "—", kind);
+        },
+        confidence: (v, r)=>{
+          const wrap = document.createElement("div");
+          const pct = Math.max(0, Math.min(1, Number(v || 0)));
+          wrap.appendChild(badge((pct*100).toFixed(0)+"%", pct>=.66 ? "good" : pct<=.33 ? "bad" : "neutral"));
+          const bar = document.createElement("div"); bar.className="bar";
+          const i = document.createElement("i"); i.style.width = (pct*100).toFixed(0)+"%";
+          bar.appendChild(i);
+          wrap.appendChild(bar);
+          return wrap;
+        },
+        expected_change_percent: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v,3); return s; },
+        score: (v, r)=>{
+          if (r.evaluated) return badge(fmt(v,4), Number(v)>=0.5 ? "good" : "bad");
+          return badge("—", "neutral");
+        },
+        model: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = String(v||"").slice(0,40); return s; },
+        thinking_style: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = String(v||"").slice(0,26); return s; }
+      };
+      const api = renderTable($("#tbl-preds"), columns, rows, {sortKey:key, sortDir:dir, cellFormat});
+      api.attachSort((k)=>{ state.sort.preds.dir = (state.sort.preds.key === k ? -state.sort.preds.dir : -1); state.sort.preds.key = k; renderPreds(state.data.preds); });
+    }
+
+    function renderCalls(calls){
+      state.data.calls = calls || [];
+      const q = $("#q-calls").value;
+      let rows = filterRows(calls || [], q);
+
+      $("#calls-count").textContent = `${rows.length} rows`;
+      const ok = rows.filter(r => r.ok).length;
+      $("#calls-ok").textContent = rows.length ? `${ok}/${rows.length} ok` : "—";
+
+      const {key, dir} = state.sort.calls;
+      rows = sortRows(rows, key, dir).slice(0,60);
+
+      const columns = [
+        {key:"timestamp", label:"time"},
+        {key:"provider", label:"prov"},
+        {key:"model", label:"model"},
+        {key:"ok", label:"ok"},
+        {key:"latency_ms", label:"ms"},
+        {key:"error", label:"err"},
+      ];
+      const cellFormat = {
+        timestamp: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent=timeOnly(v); return s; },
+        ok: (v)=> badge(v ? "OK" : "fail", v ? "good" : "bad"),
+        latency_ms: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v); return s; },
+        error: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = String(v||"").slice(0,60); return s; }
+      };
+      const api = renderTable($("#tbl-calls"), columns, rows, {sortKey:key, sortDir:dir, cellFormat});
+      api.attachSort((k)=>{ state.sort.calls.dir = (state.sort.calls.key === k ? -state.sort.calls.dir : -1); state.sort.calls.key = k; renderCalls(state.data.calls); });
+    }
+
+    function renderTrades(trades){
+      state.data.trades = trades || [];
+      const q = $("#q-trades").value;
+      let rows = filterRows(trades || [], q);
+
+      $("#trades-count").textContent = `${rows.length} rows`;
+
+      const {key, dir} = state.sort.trades;
+      rows = sortRows(rows, key, dir).slice(0,50);
+
+      const columns = [
+        {key:"timestamp", label:"time"},
+        {key:"asset", label:"asset"},
+        {key:"action", label:"action"},
+        {key:"quantity", label:"qty"},
+        {key:"price", label:"price"},
+        {key:"stop_loss", label:"stop"},
+      ];
+      const cellFormat = {
+        timestamp: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent=timeOnly(v); return s; },
+        action: (v)=> {
+          const act = String(v||"").toUpperCase();
+          return badge(act || "—", act.includes("BUY") ? "good" : act.includes("SELL") ? "bad" : "neutral");
+        },
+        quantity: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v, 6); return s; },
+        price: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v, 6); return s; },
+        stop_loss: (v)=>{ const s=document.createElement("span"); s.className="mono"; s.textContent = fmt(v, 6); return s; }
+      };
+      const api = renderTable($("#tbl-trades"), columns, rows, {sortKey:key, sortDir:dir, cellFormat});
+      api.attachSort((k)=>{ state.sort.trades.dir = (state.sort.trades.key === k ? -state.sort.trades.dir : -1); state.sort.trades.key = k; renderTrades(state.data.trades); });
+    }
+
+    // filter listeners
+    ["q-experts","q-preds","q-calls","q-trades"].forEach(id=>{
+      const el = $("#"+id);
+      el.addEventListener("input", ()=>{
+        if (id==="q-experts") renderExperts(state.data.experts);
+        if (id==="q-preds") renderPreds(state.data.preds);
+        if (id==="q-calls") renderCalls(state.data.calls);
+        if (id==="q-trades") renderTrades(state.data.trades);
+      });
+    });
+
+    // ---------- actions ----------
+    async function actionPOST(url, body=null){
+      const opt = { method:"POST", headers:{} };
+      if (body){
+        opt.headers["Content-Type"] = "application/json";
+        opt.body = JSON.stringify(body);
+      }
+      const r = await fetch(url, opt);
+      if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return await r.json();
+    }
+
+    $("#btn-start").addEventListener("click", async ()=>{
+      $("#btn-start").disabled = true;
+      try{
+        const res = await actionPOST("/start");
+        toast("Started", res.started ? "Worker is running." : "Worker was already running.", "good");
+        await refreshAll();
+      }catch(e){
+        toast("Start failed", String(e.message || e), "bad");
+      }finally{
+        $("#btn-start").disabled = false;
+      }
+    });
+
+    $("#btn-stop").addEventListener("click", async ()=>{
+      $("#btn-stop").disabled = true;
+      try{
+        const res = await actionPOST("/stop");
+        toast("Stopped", "Stop signal sent.", "neutral");
+        await refreshAll();
+      }catch(e){
+        toast("Stop failed", String(e.message || e), "bad");
+      }finally{
+        $("#btn-stop").disabled = false;
+      }
+    });
+
+    $("#btn-apply").addEventListener("click", async ()=>{
+      $("#btn-apply").disabled = true;
+      try{
+        const cycleSeconds = $("#cycle-seconds").value;
+        const timeframes = $("#cycle-timeframes").value;
+        const res = await actionPOST("/config", { cycle_seconds: cycleSeconds, timeframes });
+        toast("Config applied", `Cycle ${res.cycle_seconds}s • TFs: ${(res.cycle_timeframes||[]).join(",")}`, "good");
+        await refreshAll();
+      }catch(e){
+        toast("Apply failed", String(e.message || e), "bad");
+      }finally{
+        $("#btn-apply").disabled = false;
+      }
+    });
+
+    $("#btn-preset-fast").addEventListener("click", ()=>{
+      $("#cycle-seconds").value = 10;
+      $("#cycle-timeframes").value = "5s,30s,1m";
+      toast("Preset", "Fast mode loaded. Click Apply.", "neutral");
+    });
+    $("#btn-preset-sane").addEventListener("click", ()=>{
+      $("#cycle-seconds").value = 60;
+      $("#cycle-timeframes").value = "1m,5m,15m";
+      toast("Preset", "Sane mode loaded. Click Apply.", "neutral");
+    });
+
+    $("#btn-refresh").addEventListener("click", refreshAll);
+
+    $("#btn-auto").addEventListener("click", ()=>{
+      auto = !auto;
+      $("#btn-auto").setAttribute("aria-pressed", auto ? "true" : "false");
+      toast("Auto refresh", auto ? "Enabled (every 3s)" : "Paused", "neutral");
+      if (auto) startTimer();
+      else stopTimer();
+    });
+
+    // copy buttons
+    $("#btn-copy-metrics").addEventListener("click", ()=>{
+      const m = (state.data.metrics||[]).slice(0,15);
+      const cols = ["timestamp","cycle_ms","assets_count","news_count","picks_stored","evaluated_count","traded","memory_mb","cpu_pct"];
+      const rows = [cols, ...m.map(r=> cols.map(c=> r[c]))];
+      copyText(toCSV(rows));
+    });
+    $("#btn-copy-experts").addEventListener("click", ()=>{
+      const cols = ["expert","ema_score","weight","samples","last_updated"];
+      const rows = [cols, ...filterRows(state.data.experts||[], $("#q-experts").value).map(r=> cols.map(c=> r[c]))];
+      copyText(toCSV(rows));
+    });
+    $("#btn-copy-preds").addEventListener("click", ()=>{
+      const cols = ["timestamp","asset","timeframe","direction","confidence","expected_change_percent","score","model","thinking_style"];
+      const rows = [cols, ...filterRows(state.data.preds||[], $("#q-preds").value).map(r=> cols.map(c=> r[c]))];
+      copyText(toCSV(rows));
+    });
+    $("#btn-copy-calls").addEventListener("click", ()=>{
+      const cols = ["timestamp","provider","model","ok","latency_ms","error"];
+      const rows = [cols, ...filterRows(state.data.calls||[], $("#q-calls").value).map(r=> cols.map(c=> r[c]))];
+      copyText(toCSV(rows));
+    });
+    $("#btn-copy-trades").addEventListener("click", ()=>{
+      const cols = ["timestamp","asset","action","quantity","price","stop_loss"];
+      const rows = [cols, ...filterRows(state.data.trades||[], $("#q-trades").value).map(r=> cols.map(c=> r[c]))];
+      copyText(toCSV(rows));
+    });
+
+    function stopTimer(){
+      if(timer) clearInterval(timer);
+      timer = null;
+    }
+    function startTimer(){
+      stopTimer();
+      timer = setInterval(()=> { if(auto) refreshAll(); }, 3000);
+    }
+
+    // ---------- main refresh ----------
+    async function refreshAll(){
+      $("#last-updated").textContent = "Last update: …";
+      try{
+        const [stats, status, metrics, experts, preds, calls, trades] = await Promise.all([
+          fetchJSON("/api/stats"),
+          fetchJSON("/status"),
+          fetchJSON("/api/system/metrics"),
+          fetchJSON("/api/experts/leaderboard"),
+          fetchJSON("/api/predictions/recent"),
+          fetchJSON("/api/calls/recent"),
+          fetchJSON("/api/trades/recent")
+        ]);
+
+        // sync form values with backend config
+        if (status.cycle_seconds) $("#cycle-seconds").value = status.cycle_seconds;
+        if (status.cycle_timeframes) $("#cycle-timeframes").value = status.cycle_timeframes.join(",");
+
+        renderKPIs(stats, status);
+        renderMetrics(metrics || []);
+        renderExperts(experts || []);
+        renderPreds(preds || []);
+        renderCalls(calls || []);
+        renderTrades(trades || []);
+
+        $("#last-updated").textContent = "Last update: " + (new Date()).toLocaleTimeString(undefined, {hour12:false});
+      }catch(e){
+        setLive(null);
+        $("#last-updated").textContent = "Last update: failed";
+        toast("Refresh failed", String(e.message || e), "bad");
+      }
+    }
+
+    // ---------- art controls ----------
+    (function initArtControls(){
+      const slider = document.getElementById('art');
+      const out = document.getElementById('artv');
+      const root = document.documentElement;
+      const setA = (v)=>{
+        const f = Math.max(0, Math.min(100, Number(v))) / 100;
+        root.style.setProperty('--art', f.toFixed(2));
+        if (out) out.textContent = String(Math.round(f*100));
+      };
+      if (slider){
+        setA(slider.value);
+        slider.addEventListener('input', ()=> setA(slider.value));
+      }
+
+      // clicking thumbnails swaps the background "reference" layer
+      document.querySelectorAll('.art-strip .thumb').forEach((btn)=>{
+        btn.addEventListener('click', ()=>{
+          const src = btn.getAttribute('data-src');
+          if (!src) return;
+          const bg = document.querySelector('.bg-art');
+          if (bg) bg.style.backgroundImage = `url('${src}')`;
+          toast('Art remixed', 'Swapped the background layer.', 'neutral');
+        });
+      });
+    })();
+
+    // boot
+    refreshAll();
+    startTimer();
+  </script>
 </body>
 </html>

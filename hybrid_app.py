@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, jsonify, send_file, request
+from flask import Flask, jsonify, send_file, request, send_from_directory
 from flask_cors import CORS
 
 ROOT = Path(__file__).resolve().parent
@@ -61,7 +61,8 @@ def _loop():
         i += 1
         _state["cycle_seconds"] = getattr(hybrid, "CYCLE_SECONDS", 60)
         _state["cycle_timeframes"] = list(timeframes)
-        time.sleep(_state["cycle_seconds"])
+        # Let /stop interrupt the sleep immediately.
+        _stop_evt.wait(_state["cycle_seconds"])
     _state["running"] = False
 
 
@@ -91,6 +92,13 @@ def dashboard():
     if dashboard_path.exists():
         return send_file(str(dashboard_path))
     return jsonify({"ok": True, "message": "Dashboard not found"})
+
+
+@app.get("/assets/<path:filename>")
+def assets(filename: str):
+    """Serve UI assets (your artworks, logo, etc.)."""
+    assets_dir = ROOT / "assets"
+    return send_from_directory(str(assets_dir), filename)
 
 
 @app.get("/api/stats")
@@ -137,7 +145,29 @@ def stop():
 
 @app.get("/status")
 def status():
-    return jsonify(_state)
+    providers = {
+        "ollama": {
+            "enabled": bool(getattr(hybrid, "OLLAMA_ENABLED", False)),
+            "models": list(getattr(hybrid, "OLLAMA_MODELS", [])),
+            "url": getattr(hybrid, "OLLAMA_URL", ""),
+        },
+        "remote": {
+            "enabled": bool(getattr(hybrid, "ENABLE_REMOTE", False) and getattr(hybrid, "REMOTE_MODEL_URL", "") and getattr(hybrid, "REMOTE_MODEL_MODELS", [])),
+            "models": list(getattr(hybrid, "REMOTE_MODEL_MODELS", [])),
+            "url": getattr(hybrid, "REMOTE_MODEL_URL", ""),
+        },
+    }
+    alpaca_ok = hybrid.AlpacaClient().ok() if hasattr(hybrid, "AlpacaClient") else False
+    snapshot = dict(_state)
+    snapshot.update({
+        "alpaca_ok": alpaca_ok,
+        "providers": providers,
+        "fallback_btc_trade": getattr(hybrid, "FALLBACK_BTC_TRADE", False),
+        "fallback_btc_asset": getattr(hybrid, "FALLBACK_BTC_ASSET", ""),
+        "fallback_btc_order_symbol": getattr(hybrid, "FALLBACK_BTC_ORDER_SYMBOL", ""),
+        "fallback_btc_notional": getattr(hybrid, "FALLBACK_BTC_NOTIONAL", 0),
+    })
+    return jsonify(snapshot)
 
 
 @app.post("/config")

@@ -19,6 +19,26 @@ try:
 except Exception:
     psutil = None
 
+def request_with_retries(method: str, url: str, retries: int = 2, backoff: float = 0.6, **kwargs):
+    retry_statuses = {429, 500, 502, 503, 504}
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            resp = requests.request(method, url, **kwargs)
+            if resp.status_code in retry_statuses and attempt < retries:
+                time.sleep(backoff * (attempt + 1))
+                continue
+            return resp
+        except Exception as exc:
+            last_exc = exc
+            if attempt < retries:
+                time.sleep(backoff * (attempt + 1))
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    return None
+
 DB_PATH = "trading_history.db"
 
 THINKING_STYLES = [
@@ -70,7 +90,8 @@ CYCLE_TIMEFRAMES = [x.strip() for x in os.getenv("CYCLE_TIMEFRAMES", "5s,30s,1m,
 ENABLE_REMOTE = os.getenv("ENABLE_REMOTE", "0") == "1"
 FORCE_TRADE = os.getenv("FORCE_TRADE", "1") == "1"
 FALLBACK_BTC_TRADE = os.getenv("FALLBACK_BTC_TRADE", "1") == "1"
-FALLBACK_BTC_SYMBOL = os.getenv("FALLBACK_BTC_SYMBOL", "BTCUSD").strip().upper()
+FALLBACK_BTC_ASSET = os.getenv("FALLBACK_BTC_ASSET", "BTC").strip().upper()
+FALLBACK_BTC_ORDER_SYMBOL = os.getenv("FALLBACK_BTC_ORDER_SYMBOL", "BTC/USD").strip().upper()
 FALLBACK_BTC_NOTIONAL = float(os.getenv("FALLBACK_BTC_NOTIONAL", "10"))
 
 STOP_LOSS_PERCENT = float(os.getenv("STOP_LOSS_PERCENT", "0.05"))
@@ -82,6 +103,10 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_MODELS = [m.strip() for m in os.getenv("OLLAMA_MODELS", "").split(",") if m.strip()]
 OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "0") == "1"
 OLLAMA_ALLOW_LOCALHOST = os.getenv("OLLAMA_ALLOW_LOCALHOST", "0") == "1"
+REMOTE_MODEL_URL = os.getenv("REMOTE_MODEL_URL", "").strip()
+REMOTE_MODEL_KEY = os.getenv("REMOTE_MODEL_KEY", "").strip()
+REMOTE_MODEL_MODELS = [m.strip() for m in os.getenv("REMOTE_MODEL_MODELS", "").split(",") if m.strip()]
+REMOTE_MODEL_TIMEOUT = int(os.getenv("REMOTE_MODEL_TIMEOUT", "45"))
 
 APCA_DATA_BASE_URL = os.getenv("APCA_DATA_BASE_URL", "https://data.alpaca.markets").rstrip("/")
 ENABLE_ALPHA_HUNTER = os.getenv("ENABLE_ALPHA_HUNTER", "1") == "1"
@@ -400,10 +425,11 @@ class AlpacaClient:
             pass
         return None
 
-    def place_order(self, symbol: str, qty: int, side: str, order_type="market") -> Dict[str, Any]:
+    def place_order(self, symbol: str, qty: float, side: str, order_type="market") -> Dict[str, Any]:
         if not self.ok():
             return {"error": "Alpaca keys missing"}
-        data = {"symbol": symbol, "qty": qty, "side": side, "type": order_type, "time_in_force": "day"}
+        time_in_force = "gtc" if "/" in symbol else "day"
+        data = {"symbol": symbol, "qty": qty, "side": side, "type": order_type, "time_in_force": time_in_force}
         try:
             r = requests.post(f"{self.base_url}/v2/orders", headers=self.headers, json=data, timeout=10)
             if r.status_code in (200, 201):
@@ -424,7 +450,7 @@ def get_coingecko_prices(symbols: List[str]) -> Dict[str, float]:
         return {}
     url = "https://api.coingecko.com/api/v3/simple/price"
     try:
-        r = requests.get(url, params={"ids": ",".join(ids), "vs_currencies": "usd"}, timeout=10)
+        r = request_with_retries("GET", url, params={"ids": ",".join(ids), "vs_currencies": "usd"}, timeout=10)
         if r.status_code != 200:
             return {}
         data = r.json()
@@ -462,7 +488,7 @@ def coingecko_trending_symbols() -> List[str]:
     url = "https://api.coingecko.com/api/v3/search/trending"
     out = []
     try:
-        r = requests.get(url, timeout=10)
+        r = request_with_retries("GET", url, timeout=10)
         if r.status_code != 200:
             return out
         data = r.json()
@@ -518,7 +544,7 @@ def simple_sentiment(text: str) -> float:
 
 def fetch_rss(url: str, timeout=10) -> List[str]:
     try:
-        r = requests.get(url, timeout=timeout, headers={"User-Agent":"Mozilla/5.0"})
+        r = request_with_retries("GET", url, timeout=timeout, headers={"User-Agent":"Mozilla/5.0"})
         if r.status_code != 200:
             return []
         xml = r.text
@@ -535,7 +561,7 @@ def fetch_rss(url: str, timeout=10) -> List[str]:
 def fetch_reddit_hot(subreddit: str, limit=15) -> List[str]:
     url = f"https://www.reddit.com/r/{subreddit}/hot.json"
     try:
-        r = requests.get(url, params={"limit":limit}, timeout=10, headers={"User-Agent":"demo-bot/0.1"})
+        r = request_with_retries("GET", url, params={"limit":limit}, timeout=10, headers={"User-Agent":"demo-bot/0.1"})
         if r.status_code != 200:
             return []
         data = r.json()
@@ -586,7 +612,7 @@ def ollama_chat(model: str, prompt: str, temperature=0.7, timeout=120) -> str:
         "options": {"temperature": temperature},
         "stream": False,  # important: return ONE JSON object, not JSONL stream
     }
-    r = requests.post(url, json=payload, timeout=timeout)
+    r = request_with_retries("POST", url, json=payload, timeout=timeout)
     r.raise_for_status()
 
     try:
@@ -599,6 +625,29 @@ def ollama_chat(model: str, prompt: str, temperature=0.7, timeout=120) -> str:
         data = json.loads(lines[-1])
 
     return (data.get("message") or {}).get("content") or ""
+
+def remote_chat(model: str, prompt: str, temperature=0.7, timeout=45) -> str:
+    if not REMOTE_MODEL_URL:
+        raise RuntimeError("REMOTE_MODEL_URL not set")
+    headers = {"Content-Type": "application/json"}
+    if REMOTE_MODEL_KEY:
+        headers["Authorization"] = f"Bearer {REMOTE_MODEL_KEY}"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "temperature": temperature,
+        "timeout": timeout,
+    }
+    r = request_with_retries("POST", REMOTE_MODEL_URL, headers=headers, json=payload, timeout=timeout)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"Remote model error {r.status_code}: {r.text[:200]}")
+    data = r.json()
+    if isinstance(data, dict):
+        if "choices" in data and data["choices"]:
+            msg = data["choices"][0].get("message") or {}
+            return str(msg.get("content") or "")
+        return str(data.get("text") or data.get("response") or data.get("message") or "")
+    return str(data)
 
 # -----------------------------
 # Prompt + parsing
@@ -916,40 +965,54 @@ def run_cycle(tf: str):
     news = collect_news(list(market_data.keys()))
     evaluated = evaluate_predictions(alpaca)
 
-    # model tasks (ollama only unless ENABLE_REMOTE=1 later)
+    # model tasks (ollama + optional remote provider)
     tasks = []
     ollama_localhost = OLLAMA_URL.startswith("http://localhost") or OLLAMA_URL.startswith("http://127.")
     ollama_ready = OLLAMA_ENABLED and OLLAMA_MODELS and (OLLAMA_ALLOW_LOCALHOST or not ollama_localhost)
+    remote_ready = ENABLE_REMOTE and REMOTE_MODEL_URL and REMOTE_MODEL_MODELS
+
     if ollama_ready:
         for m in OLLAMA_MODELS:
             for style in THINKING_STYLES:
                 model_full = f"ollama:{m}"
                 prompt = build_prompt(market_data, news, style, tf, list(market_data.keys()), model_full)
-                tasks.append((m, style, prompt, model_full))
+                tasks.append(("ollama", m, style, prompt, model_full))
+
+    if remote_ready:
+        for m in REMOTE_MODEL_MODELS:
+            for style in THINKING_STYLES:
+                model_full = f"remote:{m}"
+                prompt = build_prompt(market_data, news, style, tf, list(market_data.keys()), model_full)
+                tasks.append(("remote", m, style, prompt, model_full))
 
     fail_counts = {"no_text":0, "parse_fail":0, "exceptions":0}
     stored = 0
     t_start = time.time()
 
-    def worker(model_name: str, style: str, timeframe: str, prompt: str) -> Tuple[bool, str, str]:
+    def worker(provider: str, model_name: str, style: str, timeframe: str, prompt: str) -> Tuple[bool, str, str]:
         # returns (ok, response_text, error)
         t0 = time.time()
         try:
-            resp = ollama_chat(model_name, prompt, temperature=0.7, timeout=180)
+            if provider == "ollama":
+                resp = ollama_chat(model_name, prompt, temperature=0.7, timeout=180)
+            elif provider == "remote":
+                resp = remote_chat(model_name, prompt, temperature=0.7, timeout=REMOTE_MODEL_TIMEOUT)
+            else:
+                raise RuntimeError(f"Unknown provider {provider}")
             latency = int((time.time()-t0)*1000)
-            log_model_call("ollama", model_name, style, timeframe, prompt, resp, True, None, latency, None)
+            log_model_call(provider, model_name, style, timeframe, prompt, resp, True, None, latency, None)
             return True, resp, ""
         except Exception as e:
             latency = int((time.time()-t0)*1000)
-            log_model_call("ollama", model_name, style, timeframe, prompt, "", False, str(e)[:220], latency, None)
+            log_model_call(provider, model_name, style, timeframe, prompt, "", False, str(e)[:220], latency, None)
             return False, "", str(e)
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         futures = []
-        for (m, style, prompt, model_full) in tasks:
-            futures.append((m, style, prompt, model_full, ex.submit(worker, m, style, tf, prompt)))
+        for (provider, m, style, prompt, model_full) in tasks:
+            futures.append((provider, m, style, prompt, model_full, ex.submit(worker, provider, m, style, tf, prompt)))
 
-        for (m, style, prompt, model_full, fut) in futures:
+        for (provider, m, style, prompt, model_full, fut) in futures:
             try:
                 ok, text, err = fut.result()
             except Exception:
@@ -965,8 +1028,8 @@ def run_cycle(tf: str):
                 fail_counts["parse_fail"] += 1
                 continue
 
-            get_or_init_weight("ollama", m, style, tf)
-            store_predictions(model_full, "ollama", m, style, tf, picks, market_data, news)
+            get_or_init_weight(provider, m, style, tf)
+            store_predictions(model_full, provider, m, style, tf, picks, market_data, news)
             stored += len(picks)
 
     stored += collect_ai_manager_predictions(market_data, tf)
@@ -993,11 +1056,12 @@ def run_cycle(tf: str):
             record_trade(trade, alpaca_order_id)
     else:
         if stored == 0 and FALLBACK_BTC_TRADE and alpaca.ok():
-            price = get_price(alpaca, FALLBACK_BTC_SYMBOL, "crypto")
+            price = get_price(alpaca, FALLBACK_BTC_ASSET, "crypto")
             if price:
                 qty = max(0.00000001, FALLBACK_BTC_NOTIONAL / float(price))
+                qty = round(qty, 6)
                 buy_trade = {
-                    "asset": FALLBACK_BTC_SYMBOL,
+                    "asset": FALLBACK_BTC_ORDER_SYMBOL,
                     "asset_type": "crypto",
                     "timeframe": tf,
                     "expected_change": 0.0,
@@ -1022,11 +1086,14 @@ def run_cycle(tf: str):
                         sell_trade["side"] = "sell"
                         record_trade(sell_trade, res_sell.get("id"))
                         did_trade = True
-                        print(f"⚠️ Fallback round-trip {FALLBACK_BTC_SYMBOL} qty={qty:.8f}")
+                        print(f"⚠️ Fallback round-trip {FALLBACK_BTC_ORDER_SYMBOL} qty={qty:.8f}")
             else:
                 print("⚠️ Fallback BTC trade skipped (price unavailable).")
         elif FORCE_TRADE:
-            print("⚠️  FORCE_TRADE=1 but no trade signal (likely no predictions stored).")
+            if not tasks:
+                print("⚠️  No model providers enabled; FORCE_TRADE set but no signals.")
+            else:
+                print("⚠️  FORCE_TRADE=1 but no trade signal (likely no predictions stored).")
         else:
             print("💤 No trade this cycle (FORCE_TRADE=0).")
 
@@ -1042,6 +1109,8 @@ def main():
     print(f"ENV: {ENV_PATH}")
     print(f"CYCLE_SECONDS={CYCLE_SECONDS}  ENABLE_REMOTE={int(ENABLE_REMOTE)}  FORCE_TRADE={int(FORCE_TRADE)}")
     print(f"OLLAMA_URL={OLLAMA_URL}  MODELS={','.join(OLLAMA_MODELS)}  OLLAMA_ENABLED={int(OLLAMA_ENABLED)}  MAX_WORKERS={MAX_WORKERS}")
+    print(f"REMOTE_MODEL_URL={'set' if REMOTE_MODEL_URL else 'unset'}  REMOTE_MODELS={','.join(REMOTE_MODEL_MODELS)}")
+    print(f"FALLBACK_BTC_TRADE={int(FALLBACK_BTC_TRADE)}  FALLBACK_BTC_ASSET={FALLBACK_BTC_ASSET}  FALLBACK_BTC_ORDER_SYMBOL={FALLBACK_BTC_ORDER_SYMBOL}  FALLBACK_BTC_NOTIONAL={FALLBACK_BTC_NOTIONAL}")
     print("="*88)
 
     if CONSOLIDATE_ON_START:
