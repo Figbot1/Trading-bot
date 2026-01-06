@@ -1,943 +1,415 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FIGBOT — Trading Command Center</title>
-  <meta name="color-scheme" content="dark" />
-  <style>
-    :root {
-      --fg: rgba(245,245,255,0.92);
-      --muted: rgba(245,245,255,0.68);
-      --glass: rgba(15, 18, 30, 0.55);
-      --glass2: rgba(10, 12, 22, 0.42);
-      --stroke: rgba(255,255,255,0.14);
-      --shadow: 0 18px 60px rgba(0,0,0,0.55);
-      --ink: rgba(0,0,0,0.55);
-      --accent: rgba(255, 64, 129, 0.95);
-      --good: rgba(60, 220, 160, 0.95);
-      --bad: rgba(255, 86, 86, 0.95);
-      --warn: rgba(255, 214, 79, 0.95);
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FIGBOT — Shared Load Command Center</title>
+<meta name="color-scheme" content="dark" />
+<style>
+:root {
+  --fg: rgba(245,245,255,0.92);
+  --muted: rgba(245,245,255,0.68);
+  --glass: rgba(12, 14, 24, 0.55);
+  --glass2: rgba(10, 12, 22, 0.42);
+  --stroke: rgba(255,255,255,0.14);
+  --shadow: 0 18px 60px rgba(0,0,0,0.55);
+  --good: rgba(60, 220, 160, 0.95);
+  --bad: rgba(255, 86, 86, 0.95);
+  --warn: rgba(255, 214, 79, 0.95);
 
-      /* These are *not* user-adjustable; JS updates them based on live state */
-      --pulse: 0.35;      /* 0..1 */
-      --shake: 0.12;      /* 0..1 */
-      --chrom: 0.25;      /* 0..1 */
-      --glow: 0.55;       /* 0..1 */
-    }
+  /* set by live state; NOT user-adjustable */
+  --pulse: 0.28; --shake: 0.09; --chrom: 0.20;
+}
 
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color: var(--fg);
-      background: #050510;
-      overflow-x: hidden;
-    }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  color:var(--fg);
+  background:#050510;
+  overflow-x:hidden;
+}
 
-    /* Art engine canvas (combines all artworks into ONE living field) */
-    #art {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -3;
-      background: #050510;
-    }
+#art{position:fixed; inset:0; width:100%; height:100%; z-index:-3; background:#050510;}
+.veil{position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background: radial-gradient(70% 60% at 50% 35%, rgba(0,0,0,0.06), rgba(0,0,0,0.72)),
+              linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.72));
+}
+.ink{position:fixed; inset:-2vh -2vw; z-index:-1; pointer-events:none;
+  background:url('/assets/ggg.jpg') center/cover no-repeat;
+  filter: blur(10px) contrast(1.05) saturate(0.95);
+  opacity:0.22; mix-blend-mode:multiply;
+  transform: scale(1.05);
+}
+.ribbon{position:fixed; left:0; right:0; bottom:-10px; height:140px; z-index:-2; pointer-events:none;
+  background:url('/assets/ggggggggggggg.png') center/cover no-repeat;
+  opacity:0.22; filter: blur(10px) saturate(1.1); mix-blend-mode:screen;
+  transform: translateY(calc(var(--pulse) * 10px));
+}
 
-    /* Soft darkening + vignette */
-    .veil {
-      position: fixed;
-      inset: 0;
-      z-index: -2;
-      background:
-        radial-gradient(70% 60% at 50% 35%, rgba(0,0,0,0.08), rgba(0,0,0,0.72)),
-        linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.72));
-      pointer-events: none;
-    }
+.wrap{max-width:1240px; margin:0 auto; padding:28px 18px 80px;}
+.brand{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px;}
+.lock{display:flex; align-items:center; gap:14px; min-width:0;}
+.badge{width:58px; height:58px; border-radius:18px; border:1px solid rgba(255,255,255,0.18);
+  background: radial-gradient(100% 100% at 20% 10%, rgba(255,255,255,0.35), rgba(255,255,255,0.05)),
+              linear-gradient(135deg, rgba(255,64,129,0.85), rgba(94,234,212,0.75));
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  position:relative; overflow:hidden;
+}
+.badge:after{content:""; position:absolute; inset:-40%;
+  background:url('/assets/gg.jpg') center/cover no-repeat;
+  opacity:0.55; mix-blend-mode:overlay;
+  transform: rotate(8deg);
+  filter:saturate(1.15) contrast(1.1);
+}
+h1{margin:0; font-size:clamp(42px, 6vw, 78px); font-weight:900; letter-spacing:.04em; line-height:.9; text-transform:uppercase;
+  filter: drop-shadow(0 18px 24px rgba(0,0,0,0.55)); position:relative;
+}
+h1:before,h1:after{content:"FIGBOT"; position:absolute; left:0; top:0; z-index:-1;
+  opacity: calc(0.18 + var(--chrom) * 0.35); mix-blend-mode:screen;}
+h1:before{color: rgba(94,234,212,0.95); transform: translate(calc(var(--shake)*3px), calc(var(--shake)*-2px));}
+h1:after {color: rgba(255,64,129,0.95); transform: translate(calc(var(--shake)*-3px), calc(var(--shake)*2px));}
+.tag{margin:6px 0 0; color:var(--muted); font-weight:700; max-width:70ch;}
+.pills{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
+.pill{padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.12);
+  font-weight:800; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+  backdrop-filter: blur(10px);
+}
+.pill b{color:rgba(255,255,255,0.96); font-weight:900;}
 
-    /* Subtle scribble “ink” texture layer (comes from your art, not stock noise) */
-    .ink {
-      position: fixed;
-      inset: -2vh -2vw;
-      z-index: -1;
-      background-image: url("/assets/ggg.jpg");
-      background-size: cover;
-      background-position: center;
-      filter: blur(10px) contrast(1.05) saturate(0.95);
-      opacity: 0.22;
-      mix-blend-mode: multiply;
-      pointer-events: none;
-      transform: scale(1.05);
-    }
+.card{
+  background: linear-gradient(180deg, var(--glass), var(--glass2));
+  border:1px solid var(--stroke);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  position:relative;
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+.card:before{content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(120% 140% at 12% 0%, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
+              url('/assets/ggg.jpg') center/cover no-repeat;
+  opacity:0.18; mix-blend-mode:overlay;
+}
+.hd{padding:14px 16px 10px; display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  border-bottom:1px solid rgba(255,255,255,0.10);
+}
+.hd h2{margin:0; font-size:14px; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,0.86);}
+.sub{color:rgba(245,245,255,0.68); font-weight:800; font-size:12px;}
+.bd{padding:14px 16px 16px;}
 
-    /* Layout */
-    .wrap {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 28px 18px 80px;
-    }
+.controls{display:grid; grid-template-columns:1fr; gap:14px; margin:18px 0 18px;}
+@media(min-width:920px){.controls{grid-template-columns:1.10fr 0.90fr;}}
 
-    /* Brand bar: FIGBOT big, readable, English-only */
-    .brand {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 18px;
-    }
-    .logoLockup {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-    .logoBadge {
-      width: 58px;
-      height: 58px;
-      border-radius: 18px;
-      background:
-        radial-gradient(100% 100% at 20% 10%, rgba(255,255,255,0.35), rgba(255,255,255,0.05)),
-        linear-gradient(135deg, rgba(255,64,129,0.85), rgba(94,234,212,0.75));
-      border: 1px solid rgba(255,255,255,0.18);
-      box-shadow: 0 18px 50px rgba(0,0,0,0.45);
-      position: relative;
-      overflow: hidden;
-    }
-    .logoBadge::after {
-      content: "";
-      position: absolute;
-      inset: -40%;
-      background-image: url("/assets/gg.jpg");
-      background-size: cover;
-      background-position: center;
-      opacity: 0.55;
-      mix-blend-mode: overlay;
-      transform: rotate(8deg);
-      filter: saturate(1.15) contrast(1.1);
-    }
+.btnrow{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+button{border:0; cursor:pointer; padding:12px 14px; border-radius:14px; font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+  box-shadow:0 14px 40px rgba(0,0,0,0.35); transition:transform 160ms ease;
+}
+button:hover{transform: translateY(-1px);}
+.start{background: linear-gradient(135deg, rgba(60,220,160,0.95), rgba(94,234,212,0.9)); color:rgba(0,0,0,0.88);}
+.stop{background: linear-gradient(135deg, rgba(255,86,86,0.95), rgba(255,64,129,0.9)); color:rgba(255,255,255,0.92);}
+.apply{background: linear-gradient(135deg, rgba(255,214,79,0.95), rgba(255,151,79,0.9)); color:rgba(0,0,0,0.88);}
+input{width:100%; padding:11px 12px; border-radius:14px; border:1px solid rgba(255,255,255,0.14);
+  background:rgba(0,0,0,0.26); color:rgba(255,255,255,0.92);
+}
 
-    .figbot {
-      font-size: clamp(42px, 6vw, 78px);
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      line-height: 0.9;
-      margin: 0;
-      text-transform: uppercase;
-      filter: drop-shadow(0 18px 24px rgba(0,0,0,0.55));
-      position: relative;
-    }
-    /* Chromatic aura that responds to live state */
-    .figbot::before, .figbot::after {
-      content: "FIGBOT";
-      position: absolute;
-      left: 0;
-      top: 0;
-      z-index: -1;
-      opacity: calc(0.20 + var(--chrom) * 0.30);
-      transform: translate(calc(var(--shake) * 3px), calc(var(--shake) * -2px));
-      filter: blur(0.2px);
-      mix-blend-mode: screen;
-    }
-    .figbot::before { color: rgba(94,234,212,0.95); }
-    .figbot::after  { color: rgba(255,64,129,0.95); transform: translate(calc(var(--shake) * -3px), calc(var(--shake) * 2px)); }
+.grid{display:grid; grid-template-columns:1fr; gap:14px; margin-top:14px;}
+@media(min-width:980px){.grid{grid-template-columns:1.2fr .8fr;}}
 
-    .tagline {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      max-width: 62ch;
-    }
+table{width:100%; border-collapse:collapse; font-size:13px; color:rgba(255,255,255,0.86);}
+th,td{padding:10px 10px; border-bottom:1px solid rgba(255,255,255,0.10);}
+th{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:rgba(245,245,255,0.72); font-weight:900;}
 
-    .rightMeta {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-      min-width: 220px;
-    }
-    .pillRow {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .pill {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(245,245,255,0.85);
-      font-weight: 700;
-      font-size: 12px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      backdrop-filter: blur(10px);
-    }
-    .pill b { color: rgba(255,255,255,0.96); font-weight: 900; }
+.beats{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+.beat{padding:8px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.10);
+  background:rgba(0,0,0,0.18);
+  font-weight:900; letter-spacing:.08em; text-transform:uppercase; font-size:11px;
+  opacity:0.55;
+}
+.beat.on{opacity:1.0; box-shadow: 0 0 0 4px rgba(94,234,212,0.10);}
 
-    /* Controls */
-    .controls {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin: 18px 0 18px;
-    }
-    @media (min-width: 920px) {
-      .controls {
-        grid-template-columns: 1.15fr 0.85fr;
-        align-items: start;
-      }
-    }
+.msg{border:1px solid rgba(255,255,255,0.12); border-radius:18px; padding:12px 12px; background:rgba(0,0,0,0.18);}
+.msgTitle{font-weight:900; letter-spacing:.06em; text-transform:uppercase; font-size:12px;}
+.msgText{margin-top:6px; color:rgba(245,245,255,0.78); font-weight:650; line-height:1.35;}
+.msg.warn{border-color: rgba(255,214,79,0.35);}
+.msg.warn .msgTitle{color: rgba(255,214,79,0.95);}
 
-    .card {
-      background: linear-gradient(180deg, var(--glass), var(--glass2));
-      border: 1px solid var(--stroke);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      position: relative;
-      backdrop-filter: blur(16px) saturate(1.1);
-    }
-    /* “ink line” edges */
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(120% 140% at 12% 0%, rgba(255,255,255,0.12), rgba(255,255,255,0.02)),
-        url("/assets/ggg.jpg");
-      background-size: cover;
-      background-position: center;
-      opacity: 0.18;
-      mix-blend-mode: overlay;
-    }
-    .cardHeader {
-      padding: 14px 16px 10px;
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.10);
-    }
-    .cardTitle {
-      margin: 0;
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.86);
-    }
-    .cardSub {
-      color: rgba(245,245,255,0.68);
-      font-weight: 700;
-      font-size: 12px;
-    }
-    .cardBody { padding: 14px 16px 16px; }
-
-    .btnRow {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .btn {
-      border: 0;
-      cursor: pointer;
-      padding: 12px 14px;
-      border-radius: 14px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(0,0,0,0.88);
-      background: rgba(255,255,255,0.92);
-      box-shadow: 0 14px 40px rgba(0,0,0,0.35);
-      transition: transform 160ms ease, filter 160ms ease;
-      user-select: none;
-    }
-    .btn:hover { transform: translateY(-1px); filter: saturate(1.1); }
-    .btn:active { transform: translateY(0px) scale(0.99); }
-    .btnStart { background: linear-gradient(135deg, rgba(60,220,160,0.95), rgba(94,234,212,0.9)); }
-    .btnStop  { background: linear-gradient(135deg, rgba(255,86,86,0.95), rgba(255,64,129,0.9)); color: rgba(255,255,255,0.92); }
-    .btnApply { background: linear-gradient(135deg, rgba(255,214,79,0.95), rgba(255,151,79,0.9)); }
-    .btnSmall {
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-    }
-
-    .formRow {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    @media (min-width: 560px) {
-      .formRow { grid-template-columns: 1fr 1fr auto; align-items: end; }
-    }
-    label {
-      display: block;
-      font-size: 12px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: rgba(245,245,255,0.72);
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-    input {
-      width: 100%;
-      padding: 11px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(0,0,0,0.26);
-      color: rgba(255,255,255,0.92);
-      outline: none;
-    }
-    input:focus {
-      border-color: rgba(94,234,212,0.55);
-      box-shadow: 0 0 0 4px rgba(94,234,212,0.12);
-    }
-
-    /* Stats grid */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 12px;
-    }
-    @media (min-width: 760px) {
-      .stats { grid-template-columns: repeat(4, minmax(0,1fr)); }
-    }
-    .stat {
-      padding: 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(0,0,0,0.18);
-      position: relative;
-      overflow: hidden;
-    }
-    .stat::after {
-      content: "";
-      position: absolute;
-      inset: -40%;
-      background-image: url("/assets/gg.jpg");
-      background-size: cover;
-      background-position: center;
-      opacity: calc(0.10 + var(--glow) * 0.18);
-      mix-blend-mode: overlay;
-      transform: rotate(12deg) translateY(calc(var(--pulse) * -6px));
-      filter: saturate(1.25) contrast(1.05);
-    }
-    .statK {
-      font-size: 11px;
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
-      color: rgba(245,245,255,0.70);
-      font-weight: 900;
-      position: relative;
-      z-index: 1;
-    }
-    .statV {
-      margin-top: 6px;
-      font-size: 22px;
-      font-weight: 900;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Main grid */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-top: 14px;
-    }
-    @media (min-width: 980px) {
-      .grid {
-        grid-template-columns: 1.2fr 0.8fr;
-        align-items: start;
-      }
-    }
-
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      color: rgba(255,255,255,0.86);
-    }
-    th, td {
-      padding: 10px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.10);
-      vertical-align: top;
-    }
-    th {
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(245,245,255,0.72);
-      font-weight: 900;
-    }
-    tr:hover td {
-      background: rgba(255,255,255,0.04);
-    }
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      color: rgba(245,245,255,0.80);
-    }
-
-    /* Chart */
-    .chartWrap {
-      height: 260px;
-    }
-    canvas#equity {
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    /* Footer ribbon (uses your figbot banner art, but kept subtle) */
-    .ribbon {
-      position: fixed;
-      left: 0; right: 0; bottom: -10px;
-      height: 140px;
-      z-index: -2;
-      background-image: url("/assets/ggggggggggggg.png");
-      background-size: cover;
-      background-position: center;
-      opacity: 0.22;
-      filter: blur(10px) saturate(1.1);
-      mix-blend-mode: screen;
-      pointer-events: none;
-      transform: translateY(calc(var(--pulse) * 8px));
-    }
-
-    .toast {
-      position: fixed;
-      right: 16px;
-      bottom: 18px;
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.14);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-      max-width: 360px;
-      color: rgba(255,255,255,0.92);
-      display: none;
-    }
-    .toast.show { display: block; }
-    .toastTitle { font-weight: 900; letter-spacing: 0.04em; }
-    .toastMsg { margin-top: 6px; color: rgba(245,245,255,0.78); }
-  </style>
+.smallNote{margin-top:10px; color:rgba(245,245,255,0.60); font-weight:700; font-size:12px;}
+</style>
 </head>
 <body>
-  <canvas id="art"></canvas>
-  <div class="veil"></div>
-  <div class="ink"></div>
-  <div class="ribbon"></div>
+<canvas id="art"></canvas>
+<div class="veil"></div>
+<div class="ink"></div>
+<div class="ribbon"></div>
 
-  <div class="wrap">
-    <div class="brand">
-      <div class="logoLockup">
-        <div class="logoBadge" aria-hidden="true"></div>
-        <div style="min-width:0">
-          <h1 class="figbot">FIGBOT</h1>
-          <div class="tagline">Live trading command center - art-reactive, data-driven, and built for Railway.</div>
-          <div class="tagline" id="buildTag">Build: -</div>
-        </div>
-      </div>
-      <div class="rightMeta">
-        <div class="pillRow">
-          <div class="pill">Status: <b id="pillStatus">Unknown</b></div>
-          <div class="pill">Timeframe: <b id="pillTF">-</b></div>
-          <div class="pill">Cycles: <b id="pillCycles">0</b></div>
-        </div>
-        <div class="pillRow">
-          <div class="pill">CPU: <b id="pillCPU">-</b></div>
-          <div class="pill">Memory: <b id="pillMem">-</b></div>
-        </div>
-        <div class="pillRow">
-          <div class="pill">Consensus: <b id="pillCons">-</b></div>
-          <div class="pill">Last trade: <b id="pillTrade">-</b></div>
+<div class="wrap">
+  <div class="brand">
+    <div class="lock">
+      <div class="badge"></div>
+      <div style="min-width:0">
+        <h1>FIGBOT</h1>
+        <div class="tag">Shared load trading console. Calm clarity. No visual sliders. Build 2026-01-06 01:25:25Z</div>
+        <div class="beats">
+          <div class="beat" id="bObserve">Observe</div>
+          <div class="beat" id="bThink">Think</div>
+          <div class="beat" id="bDecide">Decide</div>
+          <div class="beat" id="bAct">Act</div>
+          <div class="beat" id="bLearn">Learn</div>
         </div>
       </div>
     </div>
+    <div class="pills">
+      <div class="pill">Status: <b id="pStatus">—</b></div>
+      <div class="pill">TF: <b id="pTF">—</b></div>
+      <div class="pill">Cycles: <b id="pCycles">0</b></div>
+      <div class="pill">Calls (10m): <b id="pCalls">0</b></div>
+      <div class="pill">Errors (10m): <b id="pErrs">0</b></div>
+    </div>
+  </div>
 
-    <div class="controls">
-      <div class="card">
-        <div class="cardHeader">
-          <h2 class="cardTitle">Controls</h2>
-          <div class="cardSub" id="lastUpdate">—</div>
+  <div class="controls">
+    <div class="card">
+      <div class="hd"><h2>Controls</h2><div class="sub" id="lastUpdate">—</div></div>
+      <div class="bd">
+        <div class="btnrow">
+          <button class="start" id="btnStart">Start</button>
+          <button class="stop" id="btnStop">Stop</button>
         </div>
-        <div class="cardBody">
-          <div class="btnRow">
-            <button class="btn btnStart" id="btnStart">Start</button>
-            <button class="btn btnStop" id="btnStop">Stop</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-top:12px">
+          <div>
+            <div class="sub">Cycle seconds</div>
+            <input id="cycleSeconds" type="number" min="1" step="1" placeholder="e.g., 60" />
           </div>
-
-          <div class="formRow" style="margin-top:14px">
-            <div>
-              <label for="cycleSeconds">Cycle seconds</label>
-              <input id="cycleSeconds" type="number" min="1" step="1" placeholder="e.g., 60" />
-            </div>
-            <div>
-              <label for="timeframes">Timeframes (comma-separated)</label>
-              <input id="timeframes" type="text" placeholder="e.g., 1m, 5m, 15m" />
-            </div>
-            <div>
-              <button class="btn btnApply btnSmall" id="btnApply">Apply</button>
-            </div>
+          <div>
+            <div class="sub">Timeframes (comma)</div>
+            <input id="timeframes" type="text" placeholder="e.g., 1m, 5m, 15m" />
           </div>
-          <div style="margin-top:10px;color:rgba(245,245,255,0.66);font-weight:700">
-            The visuals respond automatically to live volatility + activity. No sliders. No manual tuning.
-          </div>
+          <div style="align-self:end"><button class="apply" id="btnApply">Apply</button></div>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="cardHeader">
-          <h2 class="cardTitle">Snapshot</h2>
-          <div class="cardSub">Portfolio + system</div>
-        </div>
-        <div class="cardBody">
-          <div class="stats">
-            <div class="stat">
-              <div class="statK">Portfolio value</div>
-              <div class="statV" id="statValue">—</div>
-            </div>
-            <div class="stat">
-              <div class="statK">Total trades</div>
-              <div class="statV" id="statTrades">—</div>
-            </div>
-            <div class="stat">
-              <div class="statK">AI calls</div>
-              <div class="statV" id="statCalls">—</div>
-            </div>
-            <div class="stat">
-              <div class="statK">Win rate</div>
-              <div class="statV" id="statWin">—</div>
-            </div>
-          </div>
-          <div style="margin-top:14px" class="chartWrap">
-            <canvas id="equity"></canvas>
-          </div>
-        </div>
+        <div class="smallNote" id="errBanner"></div>
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="cardHeader">
-          <h2 class="cardTitle">Recent trades</h2>
-          <div class="cardSub" id="tradesMeta">—</div>
-        </div>
-        <div class="cardBody">
-          <div style="overflow:auto;max-height:360px">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Asset</th>
-                  <th>Action</th>
-                  <th>Price</th>
-                  <th>Qty</th>
-                </tr>
-              </thead>
-              <tbody id="tradesBody"></tbody>
-            </table>
+    <div class="card">
+      <div class="hd"><h2>Coach</h2><div class="sub">You don't have to hold it alone</div></div>
+      <div class="bd" id="coachBox" style="display:grid; gap:10px"></div>
+
+      <div class="hd"><h2>Keys</h2><div class="sub">Optional runtime onboarding</div></div>
+      <div class="bd">
+        <div style="display:grid; gap:10px">
+          <div>
+            <div class="sub">APCA_API_KEY_ID</div>
+            <input id="kKey" type="password" autocomplete="off" placeholder="Alpaca key id" />
           </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="cardHeader">
-          <h2 class="cardTitle">AI + system</h2>
-          <div class="cardSub">Predictions · calls · metrics</div>
-        </div>
-        <div class="cardBody">
-          <div style="display:grid;gap:14px">
-            <div>
-              <div class="mono" style="margin-bottom:8px;color:rgba(245,245,255,0.70);font-weight:900;letter-spacing:0.08em;text-transform:uppercase">Recent predictions</div>
-              <div style="overflow:auto;max-height:170px">
-                <table>
-                  <thead><tr><th>Time</th><th>Asset</th><th>Direction</th><th>Confidence</th></tr></thead>
-                  <tbody id="predBody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <div class="mono" style="margin-bottom:8px;color:rgba(245,245,255,0.70);font-weight:900;letter-spacing:0.08em;text-transform:uppercase">Recent model calls</div>
-              <div style="overflow:auto;max-height:170px">
-                <table>
-                  <thead><tr><th>Time</th><th>Model</th><th>Status</th><th>Latency</th></tr></thead>
-                  <tbody id="callsBody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <div class="mono" style="margin-bottom:8px;color:rgba(245,245,255,0.70);font-weight:900;letter-spacing:0.08em;text-transform:uppercase">Top experts</div>
-              <div style="overflow:auto;max-height:170px">
-                <table>
-                  <thead><tr><th>Model</th><th>Style</th><th>Score</th></tr></thead>
-                  <tbody id="expertsBody"></tbody>
-                </table>
-              </div>
-            </div>
+          <div>
+            <div class="sub">APCA_API_SECRET_KEY</div>
+            <input id="kSecret" type="password" autocomplete="off" placeholder="Alpaca secret key" />
           </div>
-
+          <div>
+            <div class="sub">APCA_API_BASE_URL (optional)</div>
+            <input id="kBase" type="text" autocomplete="off" placeholder="https://paper-api.alpaca.markets" />
+          </div>
+          <div class="btnrow">
+            <button class="apply" id="btnKeys">Set Keys</button>
+          </div>
+          <div class="smallNote">
+            Keys are stored <b>in memory</b> for this running instance only. For persistence, set env vars in Railway.
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast">
-    <div class="toastTitle" id="toastTitle">Notice</div>
-    <div class="toastMsg" id="toastMsg">—</div>
+  <div class="grid">
+    <div class="card">
+      <div class="hd"><h2>Recent trades</h2><div class="sub" id="tMeta">—</div></div>
+      <div class="bd">
+        <div style="overflow:auto; max-height:360px">
+          <table>
+            <thead><tr><th>Time</th><th>Asset</th><th>Action</th><th>Price</th><th>Qty</th></tr></thead>
+            <tbody id="tradesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><h2>Predictions + Calls</h2><div class="sub">Shared load in action</div></div>
+      <div class="bd" style="display:grid; gap:14px">
+        <div style="overflow:auto; max-height:180px">
+          <table><thead><tr><th>Time</th><th>Asset</th><th>TF</th><th>Dir</th><th>Conf</th></tr></thead>
+          <tbody id="predBody"></tbody></table>
+        </div>
+        <div style="overflow:auto; max-height:180px">
+          <table><thead><tr><th>Time</th><th>Model</th><th>Status</th><th>Latency</th></tr></thead>
+          <tbody id="callsBody"></tbody></table>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    const $ = (id) => document.getElementById(id);
+<script>
+const $=id=>document.getElementById(id);
+async function jget(u){ const r=await fetch(u,{cache:"no-store"}); if(!r.ok) throw new Error(u+" "+r.status); return r.json(); }
+async function jpost(u,b=null){ const r=await fetch(u,{method:"POST",headers:b?{"Content-Type":"application/json"}:undefined,body:b?JSON.stringify(b):undefined}); if(!r.ok) throw new Error(u+" "+r.status); return r.json(); }
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function setVars(pulse,shake,chrom){ const s=document.documentElement.style; s.setProperty("--pulse", String(clamp01(pulse))); s.setProperty("--shake", String(clamp01(shake))); s.setProperty("--chrom", String(clamp01(chrom))); }
 
-    // ----- Toast -----
-    let toastTimer = null;
-    function toast(title, msg) {
-      $("toastTitle").textContent = title;
-      $("toastMsg").textContent = msg;
-      $("toast").classList.add("show");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => $("toast").classList.remove("show"), 2800);
+function render(tbody, rows, cols) {
+  tbody.innerHTML="";
+  for(const r of rows) {
+    const tr=document.createElement("tr");
+    for(const c of cols) {
+      const td=document.createElement("td");
+      td.textContent = (r[c] ?? "");
+      tr.appendChild(td);
     }
+    tbody.appendChild(tr);
+  }
+}
 
-    // ----- Art Engine (combines ALL artworks into ONE canvas) -----
-    const art = $("art");
-    const ctx = art.getContext("2d", { alpha: false });
+function beat(id,on){ const el=$(id); if(!el) return; el.classList.toggle("on", !!on); }
 
-    const layers = [
-      { src: "/assets/ggg.jpg", mode: "multiply", baseOpacity: 0.70 },
-      { src: "/assets/gg.jpg", mode: "screen",   baseOpacity: 0.44 },
-      { src: "/assets/gggg.jpg", mode: "overlay", baseOpacity: 0.26 },
-      { src: "/assets/ggggggg.jpg", mode: "soft-light", baseOpacity: 0.22 },
-      // The square banner (if it includes a logo in the source, we keep it very subtle here)
-      { src: "/assets/g.jpg", mode: "overlay", baseOpacity: 0.10 },
-    ];
+function renderCoach(coach) {
+  const box = $("coachBox");
+  box.innerHTML = "";
+  for (const m of (coach.messages||[])) {
+    const div = document.createElement("div");
+    div.className = "msg" + (m.role==="warning" ? " warn" : "");
+    div.innerHTML = `<div class="msgTitle">${m.title||"Message"}</div><div class="msgText">${m.text||""}</div>`;
+    box.appendChild(div);
+  }
+}
 
-    function fitCanvas() {
-      art.width = Math.floor(window.innerWidth * devicePixelRatio);
-      art.height = Math.floor(window.innerHeight * devicePixelRatio);
-    }
-    window.addEventListener("resize", fitCanvas);
-    fitCanvas();
+let prevScore=null, ema=0;
 
-    async function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
-      });
-    }
+async function refresh() {
+  try {
+    const [status, coach, trades, preds, calls, stats] = await Promise.all([
+      jget("/status"),
+      jget("/api/coach"),
+      jget("/api/trades/recent"),
+      jget("/api/predictions/recent"),
+      jget("/api/calls/recent"),
+      jget("/api/stats"),
+    ]);
 
-    async function initArt() {
-      for (const l of layers) {
-        try {
-          l.img = await loadImage(l.src);
-        } catch (e) {
-          // If an asset fails, we simply skip it
-          l.img = null;
-        }
-      }
-      requestAnimationFrame(drawArt);
-    }
+    $("pStatus").textContent = status.running ? "Running" : "Stopped";
+    $("pTF").textContent = status.last_timeframe || "—";
+    $("pCycles").textContent = String(status.cycles ?? 0);
 
-    // Live-driven motion (no manual controls)
-    let t = 0;
-    function drawArt() {
-      const w = art.width, h = art.height;
-      ctx.fillStyle = "#050510";
-      ctx.fillRect(0, 0, w, h);
+    $("pCalls").textContent = String(status.activity?.calls_10m ?? 0);
+    $("pErrs").textContent = String(status.activity?.errors_10m ?? 0);
 
-      // Read CSS vars driven by live data
-      const styles = getComputedStyle(document.documentElement);
-      const pulse = parseFloat(styles.getPropertyValue("--pulse")) || 0.3;   // 0..1
-      const shake = parseFloat(styles.getPropertyValue("--shake")) || 0.1;   // 0..1
+    // "Beats": simple rhythmic state machine based on activity
+    beat("bObserve", true);
+    beat("bThink",  status.running);
+    beat("bDecide", (status.activity?.preds_10m ?? 0) > 0);
+    beat("bAct",    (status.activity?.trades_24h ?? 0) > 0);
+    beat("bLearn",  (stats.evaluated_predictions ?? 0) > 0);
 
-      // Slow rotation centered on mandala layer
-      const cx = w / 2, cy = h / 2;
-      const rot = (t * 0.00022) * (0.6 + pulse * 1.2);
+    $("errBanner").textContent = status.last_error
+      ? ("Last error: " + status.last_error)
+      : (status.alpaca_keys_present ? "" : "Note: Alpaca keys missing — predictions run, orders will not place.");
 
-      // Draw each image layer with blend modes and slight parallax drift
-      for (let i = 0; i < layers.length; i++) {
-        const l = layers[i];
-        if (!l.img) continue;
+    renderCoach(coach);
 
-        const drift = (i+1) * 0.00018 * (0.6 + pulse);
-        const dx = Math.sin(t * drift) * w * (0.015 + shake * 0.03);
-        const dy = Math.cos(t * drift * 1.2) * h * (0.012 + shake * 0.028);
+    render($("tradesBody"), Array.isArray(trades)?trades:[], ["timestamp","asset","action","price","quantity"]);
+    render($("predBody"), Array.isArray(preds)?preds:[], ["timestamp","asset","timeframe","direction","confidence"]);
+    render($("callsBody"), Array.isArray(calls)?calls:[], ["timestamp","model","status","latency_ms"]);
 
-        ctx.save();
-        ctx.globalAlpha = l.baseOpacity * (0.72 + pulse * 0.45);
-        ctx.globalCompositeOperation = l.mode;
+    $("lastUpdate").textContent = "Updated " + new Date().toLocaleTimeString();
+    $("tMeta").textContent = (Array.isArray(trades)?trades.length:0) + " rows";
 
-        // For the mandala-like layer, rotate gently around center
-        if (l.src.includes("gggg.jpg")) {
-          ctx.translate(cx, cy);
-          ctx.rotate(rot);
-          ctx.translate(-cx, -cy);
-        }
+    // visuals respond (no knobs)
+    const activity = (status.activity?.calls_10m ?? 0) * 0.015 + (status.activity?.trades_24h ?? 0) * 0.01;
+    const score = Number(stats.avg_correctness_score ?? 0);
+    if(prevScore!==null) ema = ema*0.88 + Math.abs(score-prevScore)*0.12;
+    prevScore=score;
+    setVars(0.18 + activity + ema*3 + (status.running?0.08:0), 0.08 + activity*1.2 + ema*4, 0.18 + activity + ema*3);
+  } catch (e) {
+    $("errBanner").textContent = "UI refresh error: " + (e.message||e);
+  }
+}
 
-        // Cover-draw: maintain aspect ratio by scaling to cover viewport
-        const iw = l.img.width * devicePixelRatio;
-        const ih = l.img.height * devicePixelRatio;
-        const s = Math.max(w / iw, h / ih);
-        const dw = iw * s;
-        const dh = ih * s;
-        const x = (w - dw) / 2 + dx;
-        const y = (h - dh) / 2 + dy;
-        ctx.drawImage(l.img, x, y, dw, dh);
-        ctx.restore();
-      }
+$("btnStart").onclick = async()=>{ try{ await jpost("/start"); }finally{ refresh(); } };
+$("btnStop").onclick  = async()=>{ try{ await jpost("/stop"); }finally{ refresh(); } };
+$("btnApply").onclick = async()=>{
+  const cycle_seconds = parseInt($("cycleSeconds").value||"0",10);
+  const timeframes = $("timeframes").value||"";
+  try{ await jpost("/config", {cycle_seconds, timeframes}); }finally{ refresh(); }
+};
 
-      // Ink “containment” lines: subtle vignette stroke
-      ctx.save();
-      ctx.globalCompositeOperation = "multiply";
-      ctx.globalAlpha = 0.85;
-      const grd = ctx.createRadialGradient(cx, cy, Math.min(w,h)*0.12, cx, cy, Math.max(w,h)*0.75);
-      grd.addColorStop(0, "rgba(0,0,0,0)");
-      grd.addColorStop(1, "rgba(0,0,0,0.75)");
-      ctx.fillStyle = grd;
-      ctx.fillRect(0,0,w,h);
-      ctx.restore();
+$("btnKeys").onclick = async()=>{
+  const body = {
+    APCA_API_KEY_ID: $("kKey").value || "",
+    APCA_API_SECRET_KEY: $("kSecret").value || "",
+    APCA_API_BASE_URL: $("kBase").value || ""
+  };
+  try {
+    const r = await jpost("/api/keys", body);
+    $("errBanner").textContent = r.ok ? "Keys set for this session." : (r.error || "Key set failed.");
+  } catch(e) {
+    $("errBanner").textContent = "Key set failed: " + (e.message||e);
+  }
+};
 
-      t += 16;
-      requestAnimationFrame(drawArt);
-    }
+// Art engine: combine all artworks into one field, live responsive (no user controls)
+const art = document.getElementById("art");
+const ctx = art.getContext("2d", {alpha:false});
+const layers = [
+  {src:"/assets/ggg.jpg", mode:"multiply", a:0.70},
+  {src:"/assets/gg.jpg", mode:"screen", a:0.44},
+  {src:"/assets/gggg.jpg", mode:"overlay", a:0.26},
+  {src:"/assets/ggggggg.jpg", mode:"soft-light", a:0.22},
+  {src:"/assets/g.jpg", mode:"overlay", a:0.10},
+];
+function fit(){ art.width=Math.floor(innerWidth*devicePixelRatio); art.height=Math.floor(innerHeight*devicePixelRatio); }
+addEventListener("resize", fit); fit();
+function load(src){ return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; }); }
+(async()=>{ for(const l of layers){ try{ l.img=await load(l.src); }catch{ l.img=null; } } })();
 
-    initArt();
+let t=0;
+function draw() {
+  const w=art.width,h=art.height; ctx.fillStyle="#050510"; ctx.fillRect(0,0,w,h);
+  const s=getComputedStyle(document.documentElement);
+  const pulse=parseFloat(s.getPropertyValue("--pulse"))||0.3;
+  const shake=parseFloat(s.getPropertyValue("--shake"))||0.1;
+  const cx=w/2, cy=h/2;
+  const rot=(t*0.00022)*(0.6+pulse*1.2);
+  for(let i=0;i<layers.length;i++) {
+    const l=layers[i]; if(!l.img) continue;
+    const drift=(i+1)*0.00018*(0.6+pulse);
+    const dx=Math.sin(t*drift)*w*(0.015+shake*0.03);
+    const dy=Math.cos(t*drift*1.2)*h*(0.012+shake*0.028);
+    ctx.save();
+    ctx.globalAlpha = l.a*(0.72+pulse*0.45);
+    ctx.globalCompositeOperation = l.mode;
+    if(l.src.includes("gggg.jpg")){ ctx.translate(cx,cy); ctx.rotate(rot); ctx.translate(-cx,-cy); }
+    const iw=l.img.width*devicePixelRatio, ih=l.img.height*devicePixelRatio;
+    const sc=Math.max(w/iw, h/ih);
+    const dw=iw*sc, dh=ih*sc;
+    const x=(w-dw)/2+dx, y=(h-dh)/2+dy;
+    ctx.drawImage(l.img,x,y,dw,dh);
+    ctx.restore();
+  }
+  // vignette
+  ctx.save();
+  ctx.globalCompositeOperation="multiply"; ctx.globalAlpha=0.85;
+  const g=ctx.createRadialGradient(cx,cy,Math.min(w,h)*0.12,cx,cy,Math.max(w,h)*0.75);
+  g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0.75)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h); ctx.restore();
 
-    // ----- Chart -----
-    const equityCtx = $("equity").getContext("2d");
-    const equityChart = new Chart(equityCtx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [{
-          label: "Portfolio",
-          data: [],
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.25
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { mode: "index", intersect: false }
-        },
-        scales: {
-          x: { display: false },
-          y: { ticks: { color: "rgba(255,255,255,0.75)" }, grid: { color: "rgba(255,255,255,0.08)" } }
-        }
-      }
-    });
+  t+=16; requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
 
-    // ----- API helpers -----
-    async function jget(url) {
-      const r = await fetch(url, { cache: "no-store" });
-      if (!r.ok) throw new Error(url + " " + r.status);
-      return r.json();
-    }
-    async function jpost(url, body = null) {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined
-      });
-      if (!r.ok) throw new Error(url + " " + r.status);
-      return r.json();
-    }
-
-    // ----- Live-driven visuals (no user controls) -----
-    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
-
-    // Use trades/calls activity + portfolio volatility proxy to drive CSS vars
-    let prevValue = null;
-    let volEma = 0;
-
-    function setVisuals({ pulse, shake, chrom, glow }) {
-      const r = document.documentElement.style;
-      r.setProperty("--pulse", String(clamp01(pulse)));
-      r.setProperty("--shake", String(clamp01(shake)));
-      r.setProperty("--chrom", String(clamp01(chrom)));
-      r.setProperty("--glow", String(clamp01(glow)));
-    }
-
-    // ----- Renderers -----
-    function fmt(n) {
-      if (n === null || n === undefined) return "—";
-      if (typeof n === "number") return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      return String(n);
-    }
-
-    function renderTable(tbody, rows, cols) {
-      tbody.innerHTML = "";
-      for (const row of rows) {
-        const tr = document.createElement("tr");
-        for (const c of cols) {
-          const td = document.createElement("td");
-          const v = row[c] ?? row[c.toLowerCase()] ?? row[c.toUpperCase()];
-          td.textContent = v === null || v === undefined ? "" : String(v);
-          tr.appendChild(td);
-        }
-        tbody.appendChild(tr);
-      }
-    }
-
-    async function refresh() {
-      try {
-        const [status, stats, metrics, trades, preds, calls, experts, state, version] = await Promise.all([
-          jget("/status"),
-          jget("/api/stats"),
-          jget("/api/system/metrics"),
-          jget("/api/trades/recent"),
-          jget("/api/predictions/recent"),
-          jget("/api/calls/recent"),
-          jget("/api/experts/leaderboard"),
-          jget("/api/state"),
-          jget("/api/version"),
-        ]);
-
-        // Pills
-        $("pillStatus").textContent = status.running ? "Running" : "Stopped";
-        $("pillTF").textContent = status.last_timeframe || "—";
-        $("pillCycles").textContent = String(status.cycles ?? 0);
-        const m0 = Array.isArray(metrics) ? (metrics[0] || {}) : (metrics || {});
-        $("pillCPU").textContent = m0.cpu_percent !== undefined ? (m0.cpu_percent + "%") : "-";
-        $("pillMem").textContent = m0.memory_mb !== undefined ? (m0.memory_mb + " MB") : "-";
-
-        if (version && $("buildTag")) {
-          $("buildTag").textContent = "Build: " + (version.build || "local");
-        }
-
-        // Config inputs
-        if ($("cycleSeconds").value === "") $("cycleSeconds").value = String(status.cycle_seconds ?? "");
-        if ($("timeframes").value === "") $("timeframes").value = (status.cycle_timeframes || []).join(", ");
-
-        // Stats
-        $("statValue").textContent = fmt(stats.portfolio_value ?? stats.portfolio ?? stats.value ?? "-");
-        $("statTrades").textContent = fmt(stats.total_trades ?? stats.trades ?? "-");
-        $("statCalls").textContent = fmt(stats.ai_calls ?? stats.model_calls ?? stats.calls ?? "-");
-        $("statWin").textContent = (stats.win_rate !== undefined && stats.win_rate !== null)
-          ? (Number(stats.win_rate) * 100).toFixed(1) + "%"
-          : (stats.avg_correctness_score !== undefined && stats.avg_correctness_score !== null)
-            ? (Number(stats.avg_correctness_score) * 100).toFixed(1) + "%"
-            : "-";
-
-        // Equity chart (append)
-        const pv = (stats.portfolio_value ?? stats.portfolio ?? stats.value);
-        const now = new Date();
-        const label = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        if (typeof pv === "number") {
-          equityChart.data.labels.push(label);
-          equityChart.data.datasets[0].data.push(pv);
-          if (equityChart.data.labels.length > 80) {
-            equityChart.data.labels.shift();
-            equityChart.data.datasets[0].data.shift();
-          }
-          equityChart.update("none");
-        }
-
-        // Activity-driven visuals
-        if (typeof pv === "number") {
-          if (prevValue !== null) {
-            const r = Math.abs(pv - prevValue) / Math.max(1, prevValue);
-            volEma = volEma * 0.88 + r * 0.12;
-          }
-          prevValue = pv;
-        }
-
-        const tradeCount = Array.isArray(trades) ? trades.length : (trades.rows?.length ?? 0);
-        const callCount = Array.isArray(calls) ? calls.length : (calls.rows?.length ?? 0);
-
-        const consensus = state && state.consensus ? state.consensus : null;
-        if (consensus && $("pillCons")) {
-          const dir = (consensus.direction || "-").toUpperCase();
-          const strength = typeof consensus.strength === "number" ? Math.abs(consensus.strength) : 0;
-          $("pillCons").textContent = `${dir} (${(strength*100).toFixed(0)}%)`;
-        }
-        const lastTrade = state && state.last_trade ? state.last_trade : null;
-        if ($("pillTrade")) {
-          $("pillTrade").textContent = lastTrade && lastTrade.timestamp ? lastTrade.timestamp.split("T")[1] : "-";
-        }
-
-        const pulse = clamp01(0.22 + volEma * 14 + (status.running ? 0.10 : 0.0));
-        const shake = clamp01(0.06 + volEma * 18 + Math.min(0.18, callCount * 0.01));
-        const chrom = clamp01(0.18 + volEma * 12 + Math.min(0.25, tradeCount * 0.01));
-        const glow  = clamp01(0.40 + volEma * 10 + (status.running ? 0.10 : -0.05));
-        setVisuals({ pulse, shake, chrom, glow });
-
-        // Tables (handle both list and {rows:[]} shapes)
-        const tradesRows = Array.isArray(trades) ? trades : (trades.rows || []);
-        const predsRows = Array.isArray(preds) ? preds : (preds.rows || []);
-        const callsRows = Array.isArray(calls) ? calls : (calls.rows || []);
-        const expRows = Array.isArray(experts) ? experts : (experts.rows || []);
-
-        renderTable($("tradesBody"), tradesRows, ["timestamp","asset","action","price","quantity"]);
-        renderTable($("predBody"), predsRows, ["timestamp","asset","direction","confidence"]);
-        renderTable($("callsBody"), callsRows, ["timestamp","model","status","latency_ms"]);
-        renderTable($("expertsBody"), expRows, ["model","style","score"]);
-
-        $("lastUpdate").textContent = "Updated " + label;
-        $("tradesMeta").textContent = tradesRows.length ? (tradesRows.length + " rows") : "No trades yet";
-
-      } catch (e) {
-        toast("Refresh failed", String(e.message || e));
-      }
-    }
-
-    // Buttons
-    $("btnStart").addEventListener("click", async () => {
-      try {
-        const r = await jpost("/start");
-        toast("FIGBOT", r.started ? "Started" : "Already running");
-        await refresh();
-      } catch (e) {
-        toast("Start failed", String(e.message || e));
-      }
-    });
-
-    $("btnStop").addEventListener("click", async () => {
-      try {
-        await jpost("/stop");
-        toast("FIGBOT", "Stopped");
-        await refresh();
-      } catch (e) {
-        toast("Stop failed", String(e.message || e));
-      }
-    });
-
-    $("btnApply").addEventListener("click", async () => {
-      try {
-        const cycle_seconds = parseInt($("cycleSeconds").value || "0", 10);
-        const timeframes = $("timeframes").value || "";
-        await jpost("/config", { cycle_seconds, timeframes });
-        toast("Config", "Applied");
-        await refresh();
-      } catch (e) {
-        toast("Config failed", String(e.message || e));
-      }
-    });
-
-    // Poll
-    refresh();
-    setInterval(refresh, 2500);
-  </script>
+refresh();
+setInterval(refresh, 2500);
+</script>
 </body>
 </html>

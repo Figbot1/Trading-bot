@@ -1,22 +1,14 @@
 """
-Dashboard API Server (Flask)
-- Reads trading_history.db
-- Shows stats, leaderboard (expert_weights), recent predictions, recent calls, recent trades
-RUN:
-  python .\dashboard_api.py
+Dashboard API (importable)
+DB-backed read endpoints used by hybrid_app.
 """
-from flask import Flask, jsonify, send_file
-from flask_cors import CORS
+
+from flask import jsonify
 import sqlite3
-import os
-from datetime import datetime
 
 DB_PATH = "trading_history.db"
 
-app = Flask(__name__)
-CORS(app)
-
-def q(query, args=()):
+def _q(query, args=()):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -25,19 +17,37 @@ def q(query, args=()):
     conn.close()
     return rows
 
-@app.route("/")
-def index():
-    return send_file("dashboard.html")
+def _safe_count(table: str, where: str = "") -> int:
+    try:
+        w = f" WHERE {where}" if where else ""
+        return int(_q(f"SELECT COUNT(*) AS n FROM {table}{w}")[0]["n"])
+    except Exception:
+        return 0
 
-@app.route("/api/stats")
+def _safe_avg(sql: str, default=0.0) -> float:
+    try:
+        v = _q(sql)[0][0]
+        return float(v) if v is not None else float(default)
+    except Exception:
+        return float(default)
+
 def stats():
-    total_preds = q("SELECT COUNT(*) AS n FROM predictions")[0]["n"]
-    eval_preds = q("SELECT COUNT(*) AS n FROM predictions WHERE evaluated=1")[0]["n"]
-    avg_score = q("SELECT AVG(correctness_score) AS s FROM predictions WHERE evaluated=1")[0]["s"] or 0
-    total_calls = q("SELECT COUNT(*) AS n FROM model_calls")[0]["n"]
-    ok_calls = q("SELECT COUNT(*) AS n FROM model_calls WHERE ok=1")[0]["n"]
-    total_trades = q("SELECT COUNT(*) AS n FROM trades")[0]["n"]
-    portfolio_value = float(os.getenv("PORTFOLIO_CAP", "30"))
+    total_preds = _safe_count("predictions")
+    eval_preds = _safe_count("predictions", "evaluated=1")
+    avg_score = _safe_avg("SELECT AVG(correctness_score) FROM predictions WHERE evaluated=1", 0.0)
+
+    total_calls = _safe_count("model_calls")
+    ok_calls = _safe_count("model_calls", "ok=1")
+    total_trades = _safe_count("trades")
+
+    win_rate = None
+    if eval_preds:
+        try:
+            wins = int(_q("SELECT COUNT(*) AS n FROM predictions WHERE evaluated=1 AND correctness_score >= 0.5")[0]["n"])
+            win_rate = wins / eval_preds
+        except Exception:
+            win_rate = None
+
     return jsonify({
         "total_predictions": total_preds,
         "evaluated_predictions": eval_preds,
@@ -45,115 +55,77 @@ def stats():
         "model_calls": total_calls,
         "model_calls_ok": ok_calls,
         "total_trades": total_trades,
-        "portfolio_value": portfolio_value,
-        "ai_calls": total_calls,
-        "win_rate": round(float(avg_score), 4),
+        "win_rate": win_rate,
+        "portfolio_value": None
     })
 
-@app.route("/api/experts/leaderboard")
 def experts():
-    rows = q("""SELECT provider, model, thinking_style, timeframe, weight, ema_score, samples, last_updated
-                FROM expert_weights
-                ORDER BY (ema_score * weight) DESC
-                LIMIT 50""")
-    out = []
+    try:
+        rows = _q("""SELECT provider, model, thinking_style, timeframe, weight, ema_score, samples, last_updated
+                    FROM expert_weights
+                    ORDER BY (ema_score * weight) DESC
+                    LIMIT 60""")
+    except Exception:
+        return jsonify([])
+    out=[]
     for r in rows:
         out.append({
-            "expert": f"{r['provider']}:{r['model']}:{r['thinking_style']}:{r['timeframe']}",
+            "model": f"{r['provider']}:{r['model']}",
+            "style": r["thinking_style"],
+            "timeframe": r["timeframe"],
+            "score": round(float(r["ema_score"]), 4),
             "weight": round(float(r["weight"]), 6),
-            "ema_score": round(float(r["ema_score"]), 4),
             "samples": int(r["samples"]),
-            "last_updated": r["last_updated"]
+            "last_updated": r["last_updated"],
         })
     return jsonify(out)
 
-@app.route("/api/predictions/recent")
 def preds():
-    rows = q("""SELECT timestamp, model, thinking_style, asset, asset_type, timeframe, direction,
-                       confidence, expected_change_percent, evaluated, correctness_score
-                FROM predictions
-                ORDER BY timestamp DESC
-                LIMIT 100""")
-    out = []
-    for r in rows:
-        out.append({
-            "timestamp": r["timestamp"],
-            "model": r["model"],
-            "thinking_style": r["thinking_style"],
-            "asset": r["asset"],
-            "asset_type": r["asset_type"],
-            "timeframe": r["timeframe"],
-            "direction": r["direction"],
-            "confidence": round(float(r["confidence"] or 0), 3),
-            "expected_change_percent": round(float(r["expected_change_percent"] or 0), 3),
-            "evaluated": bool(r["evaluated"]),
-            "score": round(float(r["correctness_score"] or 0), 4) if r["evaluated"] else None
-        })
-    return jsonify(out)
+    try:
+        rows = _q("""SELECT timestamp, asset, timeframe, direction, confidence, expected_change_percent
+                    FROM predictions
+                    ORDER BY timestamp DESC
+                    LIMIT 120""")
+    except Exception:
+        return jsonify([])
+    return jsonify([dict(r) for r in rows])
 
-@app.route("/api/calls/recent")
 def calls():
-    rows = q("""SELECT timestamp, provider, model, thinking_style, timeframe, ok, error, latency_ms
-                FROM model_calls
-                ORDER BY id DESC
-                LIMIT 120""")
-    out = []
+    try:
+        rows = _q("""SELECT timestamp, provider, model, thinking_style, ok, latency_ms, error
+                    FROM model_calls
+                    ORDER BY timestamp DESC
+                    LIMIT 120""")
+    except Exception:
+        return jsonify([])
+    out=[]
     for r in rows:
         out.append({
             "timestamp": r["timestamp"],
-            "provider": r["provider"],
-            "model": r["model"],
-            "thinking_style": r["thinking_style"],
-            "timeframe": r["timeframe"],
-            "ok": bool(r["ok"]),
+            "model": f"{r['provider']}:{r['model']}",
+            "status": "ok" if int(r["ok"])==1 else "error",
+            "latency_ms": r["latency_ms"],
             "error": r["error"],
-            "latency_ms": r["latency_ms"]
+            "style": r["thinking_style"],
         })
     return jsonify(out)
 
-@app.route("/api/trades/recent")
 def trades():
-    rows = q("""SELECT timestamp, asset, asset_type, action, quantity, price, stop_loss
-                FROM trades
-                ORDER BY id DESC
-                LIMIT 50""")
-    out = []
-    for r in rows:
-        out.append({
-            "timestamp": r["timestamp"],
-            "asset": r["asset"],
-            "asset_type": r["asset_type"],
-            "action": r["action"],
-            "quantity": r["quantity"],
-            "price": round(float(r["price"] or 0), 6),
-            "stop_loss": round(float(r["stop_loss"] or 0), 6)
-        })
-    return jsonify(out)
+    try:
+        rows = _q("""SELECT timestamp, asset, action, price, quantity
+                    FROM trades
+                    ORDER BY timestamp DESC
+                    LIMIT 120""")
+    except Exception:
+        return jsonify([])
+    return jsonify([dict(r) for r in rows])
 
-@app.route("/api/system/metrics")
 def system_metrics():
-    rows = q("""SELECT timestamp, cycle_ms, assets_count, news_count, picks_stored,
-                       evaluated_count, traded, fail_counts, memory_mb, cpu_pct
-                FROM system_metrics
-                ORDER BY id DESC
-                LIMIT 200""")
-    out = []
-    for r in rows:
-        out.append({
-            "timestamp": r["timestamp"],
-            "cycle_ms": int(r["cycle_ms"] or 0),
-            "assets_count": int(r["assets_count"] or 0),
-            "news_count": int(r["news_count"] or 0),
-            "picks_stored": int(r["picks_stored"] or 0),
-            "evaluated_count": int(r["evaluated_count"] or 0),
-            "traded": bool(r["traded"]),
-            "fail_counts": r["fail_counts"],
-            "memory_mb": float(r["memory_mb"] or 0),
-            "cpu_pct": float(r["cpu_pct"] or 0),
-            "cpu_percent": float(r["cpu_pct"] or 0),
-        })
-    return jsonify(out)
-
-if __name__ == "__main__":
-    print("Dashboard API: http://localhost:5000")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    try:
+        rows = _q("""SELECT timestamp, cpu_pct AS cpu_percent, memory_mb, cycle_ms
+                    FROM system_metrics
+                    ORDER BY timestamp DESC
+                    LIMIT 120""")
+    except Exception:
+        return jsonify([])
+    return jsonify([dict(r) for r in rows])
